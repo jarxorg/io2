@@ -61,9 +61,9 @@ NewWriteSeekBuffer(capacity int) returns the buffer.
 ```go
 // WriteSeekCloser is the interface that groups the basic Write, Seek and Close methods.
 type WriteSeekCloser interface {
-	io.Writer
-	io.Seeker
-	io.Closer
+  io.Writer
+  io.Seeker
+  io.Closer
 }
 ```
 
@@ -71,25 +71,25 @@ type WriteSeekCloser interface {
 package main
 
 import (
-	"fmt"
-	"io"
+  "fmt"
+  "io"
 
-	"github.com/jarxorg/io2"
+  "github.com/jarxorg/io2"
 )
 
 func main() {
-	o := io2.NewWriteSeekBuffer(16)
-	o.Write([]byte(`Hello!`))
-	o.Truncate(o.Len() - 1)
-	o.Write([]byte(` world!`))
+  o := io2.NewWriteSeekBuffer(16)
+  o.Write([]byte(`Hello!`))
+  o.Truncate(o.Len() - 1)
+  o.Write([]byte(` world!`))
 
-	fmt.Println(string(o.Bytes()))
-	// Output: Hello world!
+  fmt.Println(string(o.Bytes()))
+  // Output: Hello world!
 
-	o.Seek(-1, io.SeekEnd)
-	o.Write([]byte(`?`))
+  o.Seek(-1, io.SeekEnd)
+  o.Write([]byte(`?`))
 
-	fmt.Println(string(o.Bytes()))
-	// Output: Hello world?
+  fmt.Println(string(o.Bytes()))
+  // Output: Hello world?
 }
 ```
