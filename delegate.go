@@ -4,6 +4,7 @@ import (
 	"io"
 )
 
+// Delegate holds Reader, Writer, Seeker, Closer functions.
 type Delegate struct {
 	Read  func(p []byte) (n int, err error)
 	Write func(p []byte) (n int, err error)
@@ -11,10 +12,12 @@ type Delegate struct {
 	Close func() error
 }
 
+// Delegator implements Reader, Writer, Seeker, Closer.
 type Delegator struct {
 	Delegate Delegate
 }
 
+// DelegateReader returns a Delegator with the provided Read function.
 func DelegateReader(i io.Reader) *Delegator {
 	return &Delegator{
 		Delegate: Delegate{
@@ -23,6 +26,7 @@ func DelegateReader(i io.Reader) *Delegator {
 	}
 }
 
+// DelegateReadCloser returns a Delegator with the provided Read and Close functions.
 func DelegateReadCloser(i io.ReadCloser) *Delegator {
 	return &Delegator{
 		Delegate: Delegate{
@@ -32,6 +36,7 @@ func DelegateReadCloser(i io.ReadCloser) *Delegator {
 	}
 }
 
+// DelegateReadSeeker returns a Delegator with the provided Read and Seek functions.
 func DelegateReadSeeker(i io.ReadSeeker) *Delegator {
 	return &Delegator{
 		Delegate: Delegate{
@@ -41,6 +46,7 @@ func DelegateReadSeeker(i io.ReadSeeker) *Delegator {
 	}
 }
 
+// DelegateReadSeekCloser returns a Delegator with the provided Read, Seek and Close functions.
 func DelegateReadSeekCloser(i io.ReadSeekCloser) *Delegator {
 	return &Delegator{
 		Delegate: Delegate{
@@ -51,6 +57,7 @@ func DelegateReadSeekCloser(i io.ReadSeekCloser) *Delegator {
 	}
 }
 
+// DelegateReadWriteCloser returns a Delegator with the provided Read, Write and Close functions.
 func DelegateReadWriteCloser(i io.ReadWriteCloser) *Delegator {
 	return &Delegator{
 		Delegate: Delegate{
@@ -61,6 +68,7 @@ func DelegateReadWriteCloser(i io.ReadWriteCloser) *Delegator {
 	}
 }
 
+// DelegateReadWriteSeeker returns a Delegator with the provided Read, Write and Seek functions.
 func DelegateReadWriteSeeker(i io.ReadWriteSeeker) *Delegator {
 	return &Delegator{
 		Delegate: Delegate{
@@ -71,6 +79,7 @@ func DelegateReadWriteSeeker(i io.ReadWriteSeeker) *Delegator {
 	}
 }
 
+// DelegateReadWriter returns a Delegator with the provided Read and Write functions.
 func DelegateReadWriter(i io.ReadWriter) *Delegator {
 	return &Delegator{
 		Delegate: Delegate{
@@ -80,6 +89,7 @@ func DelegateReadWriter(i io.ReadWriter) *Delegator {
 	}
 }
 
+// DelegateWriter returns a Delegator with the provided Write function.
 func DelegateWriter(i io.Writer) *Delegator {
 	return &Delegator{
 		Delegate: Delegate{
@@ -88,6 +98,7 @@ func DelegateWriter(i io.Writer) *Delegator {
 	}
 }
 
+// DelegateWriteCloser returns a Delegator with the provided Write and Close functions.
 func DelegateWriteCloser(i io.WriteCloser) *Delegator {
 	return &Delegator{
 		Delegate: Delegate{
@@ -97,6 +108,7 @@ func DelegateWriteCloser(i io.WriteCloser) *Delegator {
 	}
 }
 
+// DelegateWriteSeeker returns a Delegator with the provided Write and Seek functions.
 func DelegateWriteSeeker(i io.WriteSeeker) *Delegator {
 	return &Delegator{
 		Delegate: Delegate{
@@ -106,6 +118,7 @@ func DelegateWriteSeeker(i io.WriteSeeker) *Delegator {
 	}
 }
 
+// DelegateWriteSeekCloser returns a Delegator with the provided Write , Seek and Close functions.
 func DelegateWriteSeekCloser(i WriteSeekCloser) *Delegator {
 	return &Delegator{
 		Delegate: Delegate{

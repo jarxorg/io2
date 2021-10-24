@@ -1,5 +1,8 @@
 # github.com/jarxorg/io2
 
+[![PkgGoDev](https://pkg.go.dev/badge/github.com/jarxorg/io2)](https://pkg.go.dev/github.com/jarxorg/io2)
+[![Report Card](https://goreportcard.com/badge/github.com/jarxorg/io2)](https://goreportcard.com/report/github.com/jarxorg/io2)
+
 Go "io" package utilities.
 
 ## Delegator
