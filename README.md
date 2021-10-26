@@ -8,7 +8,7 @@ Go "io" package utilities.
 ## Delegator
 
 Delegator implements io.Reader, io.Writer, io.Seeker, io.Closer.
-Delegator can override the io methods that is useful for unit tests.
+Delegator can override the io functions that is useful for unit tests.
 
 ```go
 package main
@@ -26,7 +26,7 @@ func main() {
   org := bytes.NewReader([]byte(`original`))
 
   r := io2.DelegateReader(org)
-  r.Delegate.Read = func(p []byte) (int, error) {
+  r.ReadFunc = func(p []byte) (int, error) {
     return 0, errors.New("custom")
   }
 
@@ -53,6 +53,37 @@ func NopReadSeekCloser(r io.ReadSeeker) io.ReadSeekCloser {
 // NopWriteCloser returns a WriteCloser with a no-op Close method wrapping the provided interface.
 func NopWriteCloser(w io.Writer) io.WriteCloser {
   return DelegateWriter(w)
+}
+```
+
+## FSDelegator and FileDelegator
+
+FSDelegator implements FS, ReadDirFS, ReadFileFS, StatFS, SubFS of [io/fs](https://github.com/golang/go/tree/master/src/io/fs) package.
+FSDelegator can override the FS functions that is useful for unit tests.
+
+```go
+package main
+
+import (
+  "errors"
+  "fmt"
+  "io/fs"
+  "os"
+
+  "github.com/jarxorg/io2"
+)
+
+func main() {
+  fsys := io2.DelegateFS(os.DirFS("."))
+  fsys.ReadDirFunc = func(name string) ([]fs.DirEntry, error) {
+    return nil, errors.New("custom")
+  }
+
+  var err error
+  _, err = fs.ReadDir(fsys, ".")
+  fmt.Printf("Error: %v\n", err)
+
+  // Output: Error: custom
 }
 ```
 
@@ -87,12 +118,13 @@ func main() {
   o.Write([]byte(` world!`))
 
   fmt.Println(string(o.Bytes()))
-  // Output: Hello world!
 
   o.Seek(-1, io.SeekEnd)
   o.Write([]byte(`?`))
 
   fmt.Println(string(o.Bytes()))
-  // Output: Hello world?
+  // Output:
+  // Hello world!
+  // Hello world?
 }
 ```

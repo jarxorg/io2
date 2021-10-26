@@ -5,21 +5,54 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"io/ioutil"
+	"os"
 
 	"github.com/jarxorg/io2"
 )
 
-func Example_DelegateReader_Error() {
+func Example_DelegateReader_Read_Error() {
 	org := bytes.NewReader([]byte(`original`))
 
 	r := io2.DelegateReader(org)
-	r.Delegate.Read = func(p []byte) (int, error) {
+	r.ReadFunc = func(p []byte) (int, error) {
 		return 0, errors.New("custom")
 	}
 
 	var err error
 	_, err = ioutil.ReadAll(r)
+	fmt.Printf("Error: %v\n", err)
+
+	// Output: Error: custom
+}
+
+func Example_DelegateFS_ReadDir_Error() {
+	fsys := io2.DelegateFS(os.DirFS("."))
+	fsys.ReadDirFunc = func(name string) ([]fs.DirEntry, error) {
+		return nil, errors.New("custom")
+	}
+
+	var err error
+	_, err = fs.ReadDir(fsys, ".")
+	fmt.Printf("Error: %v\n", err)
+
+	// Output: Error: custom
+}
+
+func Example_DelegateFile_Stat_Error() {
+	fsys := io2.DelegateFS(os.DirFS("."))
+	fsys.OpenFunc = func(name string) (fs.File, error) {
+		return &io2.FileDelegator{
+			StatFunc: func() (fs.FileInfo, error) {
+				return nil, errors.New("custom")
+			},
+		}, nil
+	}
+
+	file, _ := fsys.Open("anyfile")
+	var err error
+	_, err = file.Stat()
 	fmt.Printf("Error: %v\n", err)
 
 	// Output: Error: custom
