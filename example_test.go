@@ -12,7 +12,7 @@ import (
 	"github.com/jarxorg/io2"
 )
 
-func Example_DelegateReader_Read_Error() {
+func ExampleDelegateReader() {
 	org := bytes.NewReader([]byte(`original`))
 
 	r := io2.DelegateReader(org)
@@ -27,7 +27,7 @@ func Example_DelegateReader_Read_Error() {
 	// Output: Error: custom
 }
 
-func Example_DelegateFS_ReadDir_Error() {
+func ExampleDelegateFS() {
 	fsys := io2.DelegateFS(os.DirFS("."))
 	fsys.ReadDirFunc = func(name string) ([]fs.DirEntry, error) {
 		return nil, errors.New("custom")
@@ -40,7 +40,7 @@ func Example_DelegateFS_ReadDir_Error() {
 	// Output: Error: custom
 }
 
-func Example_DelegateFile_Stat_Error() {
+func ExampleDelegateFile() {
 	fsys := io2.DelegateFS(os.DirFS("."))
 	fsys.OpenFunc = func(name string) (fs.File, error) {
 		return &io2.FileDelegator{
@@ -58,7 +58,7 @@ func Example_DelegateFile_Stat_Error() {
 	// Output: Error: custom
 }
 
-func Example_WriteSeeker() {
+func ExampleNewWriteSeekerBuffer() {
 	o := io2.NewWriteSeekBuffer(0)
 	o.Write([]byte(`Hello!`))
 	o.Truncate(o.Len() - 1)
