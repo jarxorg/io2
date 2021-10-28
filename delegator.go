@@ -142,6 +142,12 @@ func DelegateWriteSeekCloser(i WriteSeekCloser) *Delegator {
 	}
 }
 
+// NopReadCloser returns a ReadCloser with a no-op Close method wrapping the provided interface.
+// This function like io.NopCloser(io.Reader).
+func NopReadCloser(r io.Reader) io.ReadCloser {
+	return DelegateReader(r)
+}
+
 // NopReadWriteCloser returns a ReadWriteCloser with a no-op Close method wrapping the provided interface.
 func NopReadWriteCloser(rw io.ReadWriter) io.ReadWriteCloser {
 	return DelegateReadWriter(rw)
@@ -162,12 +168,14 @@ type FSDelegator struct {
 	OpenFunc     func(name string) (fs.File, error)
 	ReadDirFunc  func(name string) ([]fs.DirEntry, error)
 	ReadFileFunc func(name string) ([]byte, error)
+	GlobFunc     func(pattern string) ([]string, error)
 	StatFunc     func(name string) (fs.FileInfo, error)
 	SubFunc      func(dir string) (fs.FS, error)
 }
 
 var (
 	_ fs.FS         = (*FSDelegator)(nil)
+	_ fs.GlobFS     = (*FSDelegator)(nil)
 	_ fs.ReadDirFS  = (*FSDelegator)(nil)
 	_ fs.ReadFileFS = (*FSDelegator)(nil)
 	_ fs.StatFS     = (*FSDelegator)(nil)
@@ -198,6 +206,14 @@ func (d *FSDelegator) ReadFile(name string) ([]byte, error) {
 	return d.ReadFileFunc(name)
 }
 
+// Glob calls GlobFunc(name).
+func (d *FSDelegator) Glob(pattern string) ([]string, error) {
+	if d.GlobFunc == nil {
+		return nil, nil
+	}
+	return d.GlobFunc(pattern)
+}
+
 // Stat calls StatFunc(name).
 func (d *FSDelegator) Stat(name string) (fs.FileInfo, error) {
 	if d.StatFunc == nil {
@@ -224,6 +240,9 @@ func DelegateFS(fsys fs.FS) *FSDelegator {
 	}
 	if fsys, ok := fsys.(fs.ReadFileFS); ok {
 		d.ReadFileFunc = fsys.ReadFile
+	}
+	if fsys, ok := fsys.(fs.GlobFS); ok {
+		d.GlobFunc = fsys.Glob
 	}
 	if fsys, ok := fsys.(fs.StatFS); ok {
 		d.StatFunc = fsys.Stat

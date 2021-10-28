@@ -61,24 +61,29 @@ func testDelegatorDefaults(t *testing.T, d *Delegator) {
 
 func TestDelegates(t *testing.T) {
 	d := &Delegator{}
-	var _ io.Reader = DelegateReader(d)
-	var _ io.ReadCloser = DelegateReadCloser(d)
-	var _ io.ReadSeeker = DelegateReadSeeker(d)
-	var _ io.ReadSeekCloser = DelegateReadSeekCloser(d)
-	var _ io.ReadWriter = DelegateReadWriter(d)
-	var _ io.ReadWriteCloser = DelegateReadWriteCloser(d)
-	var _ io.ReadWriteSeeker = DelegateReadWriteSeeker(d)
-	var _ io.Writer = DelegateWriter(d)
-	var _ io.WriteCloser = DelegateWriteCloser(d)
-	var _ io.WriteSeeker = DelegateWriteSeeker(d)
-	var _ WriteSeekCloser = DelegateWriteSeekCloser(d)
+	var (
+		_ io.Reader          = DelegateReader(d)
+		_ io.ReadCloser      = DelegateReadCloser(d)
+		_ io.ReadSeeker      = DelegateReadSeeker(d)
+		_ io.ReadSeekCloser  = DelegateReadSeekCloser(d)
+		_ io.ReadWriter      = DelegateReadWriter(d)
+		_ io.ReadWriteCloser = DelegateReadWriteCloser(d)
+		_ io.ReadWriteSeeker = DelegateReadWriteSeeker(d)
+		_ io.Writer          = DelegateWriter(d)
+		_ io.WriteCloser     = DelegateWriteCloser(d)
+		_ io.WriteSeeker     = DelegateWriteSeeker(d)
+		_ WriteSeekCloser    = DelegateWriteSeekCloser(d)
+	)
 }
 
 func TestNops(t *testing.T) {
 	d := &Delegator{}
-	var _ io.ReadSeekCloser = NopReadSeekCloser(d)
-	var _ io.ReadWriteCloser = NopReadWriteCloser(d)
-	var _ io.WriteCloser = NopWriteCloser(d)
+	var (
+		_ io.ReadCloser      = NopReadCloser(d)
+		_ io.ReadSeekCloser  = NopReadSeekCloser(d)
+		_ io.ReadWriteCloser = NopReadWriteCloser(d)
+		_ io.WriteCloser     = NopWriteCloser(d)
+	)
 }
 
 func TestFSDelegator(t *testing.T) {
@@ -90,6 +95,9 @@ func TestFSDelegator(t *testing.T) {
 			return nil, nil
 		},
 		ReadFileFunc: func(_ string) ([]byte, error) {
+			return nil, nil
+		},
+		GlobFunc: func(_ string) ([]string, error) {
 			return nil, nil
 		},
 		StatFunc: func(_ string) (fs.FileInfo, error) {
@@ -129,6 +137,14 @@ func testFSDelegatorDefaults(t *testing.T, d *FSDelegator) {
 	}
 	if len(bin) != 0 {
 		t.Errorf("Error ReadFile returns not empty; want empty")
+	}
+
+	names, err := d.Glob("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(names) != 0 {
+		t.Errorf("Error Glob returns not empty; want empty")
 	}
 
 	info, err := d.Stat("")
