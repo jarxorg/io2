@@ -33,6 +33,7 @@ func main() {
   var err error
   _, err = ioutil.ReadAll(r)
   fmt.Printf("Error: %v\n", err)
+
   // Output: Error: custom
 }
 ```
@@ -123,6 +124,7 @@ func main() {
   o.Write([]byte(`?`))
 
   fmt.Println(string(o.Bytes()))
+
   // Output:
   // Hello world!
   // Hello world?
