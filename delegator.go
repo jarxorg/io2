@@ -2,7 +2,6 @@ package io2
 
 import (
 	"io"
-	"io/fs"
 )
 
 // Delegator implements Reader, Writer, Seeker, Closer.
@@ -23,7 +22,7 @@ var (
 // Read calls ReadFunc(p).
 func (d *Delegator) Read(p []byte) (int, error) {
 	if d.ReadFunc == nil {
-		return 0, nil
+		return 0, ErrNotImplemented
 	}
 	return d.ReadFunc(p)
 }
@@ -31,7 +30,7 @@ func (d *Delegator) Read(p []byte) (int, error) {
 // Write calls WriteFunc(p).
 func (d *Delegator) Write(p []byte) (int, error) {
 	if d.WriteFunc == nil {
-		return 0, nil
+		return 0, ErrNotImplemented
 	}
 	return d.WriteFunc(p)
 }
@@ -39,7 +38,7 @@ func (d *Delegator) Write(p []byte) (int, error) {
 // Seek calls SeekFunc(offset, whence).
 func (d *Delegator) Seek(offset int64, whence int) (int64, error) {
 	if d.SeekFunc == nil {
-		return 0, nil
+		return 0, ErrNotImplemented
 	}
 	return d.SeekFunc(offset, whence)
 }
@@ -47,6 +46,7 @@ func (d *Delegator) Seek(offset int64, whence int) (int64, error) {
 // Close calls CloseFunc().
 func (d *Delegator) Close() error {
 	if d.CloseFunc == nil {
+		// NOTE: return no error.
 		return nil
 	}
 	return d.CloseFunc()
@@ -161,152 +161,4 @@ func NopReadSeekCloser(r io.ReadSeeker) io.ReadSeekCloser {
 // NopWriteCloser returns a WriteCloser with a no-op Close method wrapping the provided interface.
 func NopWriteCloser(w io.Writer) io.WriteCloser {
 	return DelegateWriter(w)
-}
-
-// FSDelegator implements FS, ReadDirFS, ReadFileFS, StatFS, SubFS interface.
-type FSDelegator struct {
-	OpenFunc     func(name string) (fs.File, error)
-	ReadDirFunc  func(name string) ([]fs.DirEntry, error)
-	ReadFileFunc func(name string) ([]byte, error)
-	GlobFunc     func(pattern string) ([]string, error)
-	StatFunc     func(name string) (fs.FileInfo, error)
-	SubFunc      func(dir string) (fs.FS, error)
-}
-
-var (
-	_ fs.FS         = (*FSDelegator)(nil)
-	_ fs.GlobFS     = (*FSDelegator)(nil)
-	_ fs.ReadDirFS  = (*FSDelegator)(nil)
-	_ fs.ReadFileFS = (*FSDelegator)(nil)
-	_ fs.StatFS     = (*FSDelegator)(nil)
-	_ fs.SubFS      = (*FSDelegator)(nil)
-)
-
-// Open calls OpenFunc(name).
-func (d *FSDelegator) Open(name string) (fs.File, error) {
-	if d.OpenFunc == nil {
-		return nil, nil
-	}
-	return d.OpenFunc(name)
-}
-
-// ReadDir calls ReadDirFunc(name).
-func (d *FSDelegator) ReadDir(name string) ([]fs.DirEntry, error) {
-	if d.ReadDirFunc == nil {
-		return nil, nil
-	}
-	return d.ReadDirFunc(name)
-}
-
-// ReadFile calls ReadFileFunc(name).
-func (d *FSDelegator) ReadFile(name string) ([]byte, error) {
-	if d.ReadFileFunc == nil {
-		return nil, nil
-	}
-	return d.ReadFileFunc(name)
-}
-
-// Glob calls GlobFunc(name).
-func (d *FSDelegator) Glob(pattern string) ([]string, error) {
-	if d.GlobFunc == nil {
-		return nil, nil
-	}
-	return d.GlobFunc(pattern)
-}
-
-// Stat calls StatFunc(name).
-func (d *FSDelegator) Stat(name string) (fs.FileInfo, error) {
-	if d.StatFunc == nil {
-		return nil, nil
-	}
-	return d.StatFunc(name)
-}
-
-// Sub calls SubFunc(name).
-func (d *FSDelegator) Sub(name string) (fs.FS, error) {
-	if d.SubFunc == nil {
-		return nil, nil
-	}
-	return d.SubFunc(name)
-}
-
-// DelegateFS returns a FSDelegator with the Open, ReadDir, ReadFile, Stat, Sub functions.
-func DelegateFS(fsys fs.FS) *FSDelegator {
-	d := &FSDelegator{
-		OpenFunc: fsys.Open,
-	}
-	if fsys, ok := fsys.(fs.ReadDirFS); ok {
-		d.ReadDirFunc = fsys.ReadDir
-	}
-	if fsys, ok := fsys.(fs.ReadFileFS); ok {
-		d.ReadFileFunc = fsys.ReadFile
-	}
-	if fsys, ok := fsys.(fs.GlobFS); ok {
-		d.GlobFunc = fsys.Glob
-	}
-	if fsys, ok := fsys.(fs.StatFS); ok {
-		d.StatFunc = fsys.Stat
-	}
-	if fsys, ok := fsys.(fs.SubFS); ok {
-		d.SubFunc = fsys.Sub
-	}
-	return d
-}
-
-// FileDelegator implements File, ReadDirFile interface.
-type FileDelegator struct {
-	StatFunc    func() (fs.FileInfo, error)
-	ReadFunc    func([]byte) (int, error)
-	CloseFunc   func() error
-	ReadDirFunc func(n int) ([]fs.DirEntry, error)
-}
-
-var (
-	_ fs.File        = (*FileDelegator)(nil)
-	_ fs.ReadDirFile = (*FileDelegator)(nil)
-)
-
-// Stat calls StatFunc().
-func (f *FileDelegator) Stat() (fs.FileInfo, error) {
-	if f.StatFunc == nil {
-		return nil, nil
-	}
-	return f.StatFunc()
-}
-
-// Read calls ReadFunc(p).
-func (f *FileDelegator) Read(p []byte) (int, error) {
-	if f.ReadFunc == nil {
-		return 0, nil
-	}
-	return f.ReadFunc(p)
-}
-
-// Close calls CloseFunc().
-func (f *FileDelegator) Close() error {
-	if f.CloseFunc == nil {
-		return nil
-	}
-	return f.CloseFunc()
-}
-
-// ReadDir calls ReadDirFunc(n).
-func (f *FileDelegator) ReadDir(n int) ([]fs.DirEntry, error) {
-	if f.ReadDirFunc == nil {
-		return nil, nil
-	}
-	return f.ReadDirFunc(n)
-}
-
-// DelegateFile returns a FileDelegator with the Stat, Read, Close, ReadDir functions.
-func DelegateFile(f fs.File) *FileDelegator {
-	d := &FileDelegator{
-		StatFunc:  f.Stat,
-		ReadFunc:  f.Read,
-		CloseFunc: f.Close,
-	}
-	if f, ok := f.(fs.ReadDirFile); ok {
-		d.ReadDirFunc = f.ReadDir
-	}
-	return d
 }

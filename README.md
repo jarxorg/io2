@@ -3,12 +3,54 @@
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/jarxorg/io2)](https://pkg.go.dev/github.com/jarxorg/io2)
 [![Report Card](https://goreportcard.com/badge/github.com/jarxorg/io2)](https://goreportcard.com/report/github.com/jarxorg/io2)
 
-Go "io" package utilities.
+Go "io" and "io/fs" package utilities.
+
+## Writable io/fs implementations for the OS
+
+```sh
+package main
+
+import (
+  "fmt"
+	"io/ioutil"
+  "log"
+	"os"
+
+  "github.com/jarxorg/io2"
+  "github.com/jarxorg/io2/osfs"
+)
+
+func func main() {
+  tmpDir, err := ioutil.TempDir("", "example")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+  name := "example.txt"
+  content := []byte(`Hello`)
+
+  fsys := osfs.DirFS(tmpDir)
+  _, err = io2.WriteFile(fsys, name, content)
+  if err != nil {
+    log.Fatal(err)
+  }
+
+  wrote, err := ioutil.ReadFile(tmpDir + "/" + name)
+  if err != nil {
+    log.Fatal(err)
+  }
+
+  fmt.Printf("%s\n", string(wrote))
+
+	// Output: Hello
+}
+```
 
 ## Delegator
 
 Delegator implements io.Reader, io.Writer, io.Seeker, io.Closer.
-Delegator can override the io functions that is useful for unit tests.
+Delegator can override the I/O functions that is useful for unit tests.
 
 ```go
 package main
