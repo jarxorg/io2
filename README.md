@@ -7,7 +7,7 @@ Go "io" and "io/fs" package utilities.
 
 ## Writable io/fs implementations for the OS
 
-```sh
+```go
 package main
 
 import (
