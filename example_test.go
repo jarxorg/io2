@@ -27,6 +27,24 @@ func ExampleDelegateReader() {
 	// Output: Error: custom
 }
 
+func ExampleNewWriteSeekerBuffer() {
+	o := io2.NewWriteSeekBuffer(0)
+	o.Write([]byte(`Hello!`))
+	o.Truncate(o.Len() - 1)
+	o.Write([]byte(` world!`))
+
+	fmt.Println(string(o.Bytes()))
+
+	o.Seek(-1, io.SeekEnd)
+	o.Write([]byte(`?`))
+
+	fmt.Println(string(o.Bytes()))
+
+	// Output:
+	// Hello world!
+	// Hello world?
+}
+
 func ExampleDelegateFS() {
 	fsys := io2.DelegateFS(os.DirFS("."))
 	fsys.ReadDirFunc = func(name string) ([]fs.DirEntry, error) {
@@ -56,22 +74,4 @@ func ExampleDelegateFile() {
 	fmt.Printf("Error: %v\n", err)
 
 	// Output: Error: custom
-}
-
-func ExampleNewWriteSeekerBuffer() {
-	o := io2.NewWriteSeekBuffer(0)
-	o.Write([]byte(`Hello!`))
-	o.Truncate(o.Len() - 1)
-	o.Write([]byte(` world!`))
-
-	fmt.Println(string(o.Bytes()))
-
-	o.Seek(-1, io.SeekEnd)
-	o.Write([]byte(`?`))
-
-	fmt.Println(string(o.Bytes()))
-
-	// Output:
-	// Hello world!
-	// Hello world?
 }
