@@ -12,9 +12,9 @@ package main
 
 import (
   "fmt"
-	"io/ioutil"
+  "io/ioutil"
   "log"
-	"os"
+  "os"
 
   "github.com/jarxorg/io2"
   "github.com/jarxorg/io2/osfs"
@@ -22,10 +22,10 @@ import (
 
 func func main() {
   tmpDir, err := ioutil.TempDir("", "example")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+  if err != nil {
+    log.Fatal(err)
+  }
+  defer os.RemoveAll(tmpDir)
 
   name := "example.txt"
   content := []byte(`Hello`)
@@ -43,7 +43,7 @@ func func main() {
 
   fmt.Printf("%s\n", string(wrote))
 
-	// Output: Hello
+  // Output: Hello
 }
 ```
 
