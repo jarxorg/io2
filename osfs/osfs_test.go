@@ -21,7 +21,46 @@ func TestDirFS_TestFS(t *testing.T) {
 	}
 }
 
-func TestDirFS_WriteFile(t *testing.T) {
+func TestCreateFile(t *testing.T) {
+	tmpDir, err := ioutil.TempDir("", "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	fsys := DirFS(tmpDir)
+	got, err := io2.CreateFile(fsys, "test.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer got.Close()
+}
+
+func TestCreateFile_MkdirAllError(t *testing.T) {
+	tmpDir, err := ioutil.TempDir("", "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	orgMkdirAllFunc := osMkdirAllFunc
+	defer func() { osMkdirAllFunc = orgMkdirAllFunc }()
+
+	wantErr := errors.New("test")
+	osMkdirAllFunc = func(dir string, perm os.FileMode) error {
+		return wantErr
+	}
+
+	fsys := DirFS(tmpDir)
+	var gotErr error
+	_, gotErr = io2.CreateFile(fsys, "name.txt")
+
+	if !reflect.DeepEqual(gotErr, wantErr) {
+		t.Errorf("Error CreateFile returns unknown error %v; want %v", gotErr, wantErr)
+	}
+}
+
+func TestWriteFile(t *testing.T) {
 	tmpDir, err := ioutil.TempDir("", "test")
 	if err != nil {
 		t.Fatal(err)
@@ -49,65 +88,17 @@ func TestDirFS_WriteFile(t *testing.T) {
 	}
 }
 
-func TestWriteFileFunc_InvalidError(t *testing.T) {
+func TestWriteFile_InvalidError(t *testing.T) {
 	tmpDir, err := ioutil.TempDir("", "test")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	fn := writeFileFunc(tmpDir)
-	_, err = fn("../invalid.txt", []byte{})
+	fsys := DirFS(tmpDir)
+	_, err = io2.WriteFile(fsys, "../invalid.txt", []byte{})
 	if err == nil {
 		t.Fatal("Error WriteFile returns no error")
-	}
-}
-
-func TestWriteFileFunc_mkdirAllError(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("", "test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	orgMkdirAllFunc := osMkdirAllFunc
-	defer func() { osMkdirAllFunc = orgMkdirAllFunc }()
-
-	wantErr := errors.New("test")
-	osMkdirAllFunc = func(dir string, perm os.FileMode) error {
-		return wantErr
-	}
-
-	fn := writeFileFunc(tmpDir)
-
-	var gotErr error
-	_, gotErr = fn("test.txt", []byte{})
-	if !reflect.DeepEqual(gotErr, wantErr) {
-		t.Errorf("Error WriteFile returns unknown error %v; want %v", gotErr, wantErr)
-	}
-}
-
-func TestWriteFileFunc_createError(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("", "test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	orgCreateFunc := osCreateFunc
-	defer func() { osCreateFunc = orgCreateFunc }()
-
-	wantErr := errors.New("test")
-	osCreateFunc = func(name string) (*os.File, error) {
-		return nil, wantErr
-	}
-
-	fn := writeFileFunc(tmpDir)
-
-	var gotErr error
-	_, gotErr = fn("test.txt", []byte{})
-	if !reflect.DeepEqual(gotErr, wantErr) {
-		t.Errorf("Error WriteFile returns unknown error %v; want %v", gotErr, wantErr)
 	}
 }
 
@@ -142,7 +133,7 @@ func TestContainsDenyWin(t *testing.T) {
 	}
 }
 
-func TestDirFS_Sub_WriteFile(t *testing.T) {
+func TestSub_WriteFile(t *testing.T) {
 	tmpDir, err := ioutil.TempDir("", "test")
 	if err != nil {
 		t.Fatal(err)
@@ -174,7 +165,7 @@ func TestDirFS_Sub_WriteFile(t *testing.T) {
 	}
 }
 
-func TestDirFS_RemoveFile(t *testing.T) {
+func TestRemoveFile(t *testing.T) {
 	tmpDir, err := ioutil.TempDir("", "test")
 	if err != nil {
 		t.Fatal(err)
@@ -194,7 +185,21 @@ func TestDirFS_RemoveFile(t *testing.T) {
 	}
 }
 
-func TestDirFS_RemoveAll(t *testing.T) {
+func TestRemoveFile_InvalidError(t *testing.T) {
+	tmpDir, err := ioutil.TempDir("", "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	fsys := DirFS(tmpDir)
+	err = io2.RemoveFile(fsys, "../invalid-dir")
+	if err == nil {
+		t.Fatal("Error RemoveFile returns no error")
+	}
+}
+
+func TestRemoveAll(t *testing.T) {
 	tmpDir, err := ioutil.TempDir("", "test")
 	if err != nil {
 		t.Fatal(err)
@@ -218,30 +223,16 @@ func TestDirFS_RemoveAll(t *testing.T) {
 	}
 }
 
-func TestRemoveFileFunc_InvalidError(t *testing.T) {
+func TestRemoveAll_InvalidError(t *testing.T) {
 	tmpDir, err := ioutil.TempDir("", "test")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	fn := removeFileFunc(tmpDir)
-	err = fn("../invalid.txt")
+	fsys := DirFS(tmpDir)
+	err = io2.RemoveAll(fsys, "../invalid-dir")
 	if err == nil {
-		t.Fatal("Error RemoveFile returns no error")
-	}
-}
-
-func TestRemoveAllFunc_InvalidError(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("", "test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	fn := removeAllFunc(tmpDir)
-	err = fn("../invalid.txt")
-	if err == nil {
-		t.Fatal("Error RemoveFile returns no error")
+		t.Fatal("Error RemoveAll returns no error")
 	}
 }

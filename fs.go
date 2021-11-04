@@ -15,32 +15,26 @@ type WriterFile interface {
 // optimized implementation of WriteFile.
 type WriteFileFS interface {
 	fs.FS
+	CreateFile(name string) (WriterFile, error)
 	WriteFile(name string, p []byte) (n int, err error)
 }
 
+// CreateFile creates the named file. If the filesystem implements
+// WriteFileFS calls fsys.CreateFile otherwise returns a PathError.
+func CreateFile(fsys fs.FS, name string) (WriterFile, error) {
+	if fsys, ok := fsys.(WriteFileFS); ok {
+		return fsys.CreateFile(name)
+	}
+	return nil, &fs.PathError{Op: "CreateFile", Path: name, Err: ErrNotImplemented}
+}
+
 // WriteFile writes the specified bytes to the named file. If the filesystem implements
-// WriteFileFS calls fsys.WriteFile otherwise calls OpenWriteFile.
+// WriteFileFS calls fsys.WriteFile otherwise returns a PathError.
 func WriteFile(fsys fs.FS, name string, p []byte) (n int, err error) {
 	if fsys, ok := fsys.(WriteFileFS); ok {
 		return fsys.WriteFile(name, p)
 	}
-	return OpenWriteFile(fsys, name, p)
-}
-
-// OpenWriteFile opens the named file. If the file implements WriterFile calls Write
-// otherwise returns a PathError.
-func OpenWriteFile(fsys fs.FS, name string, p []byte) (n int, err error) {
-	file, err := fsys.Open(name)
-	if err != nil {
-		return 0, err
-	}
-	defer file.Close()
-
-	w, ok := file.(WriterFile)
-	if !ok {
-		return 0, &fs.PathError{Op: "Write", Path: name, Err: ErrNotImplemented}
-	}
-	return w.Write(p)
+	return 0, &fs.PathError{Op: "WriteFile", Path: name, Err: ErrNotImplemented}
 }
 
 // RemoveFileFS is the interface implemented by a filesystem that provides an

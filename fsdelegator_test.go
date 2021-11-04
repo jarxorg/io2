@@ -52,6 +52,9 @@ func testFSDelegatorErrors(t *testing.T, d *FSDelegator, wantErr error) {
 	if _, err = d.Sub(""); !errors.Is(err, wantErr) {
 		t.Errorf("Error unknown: %v", err)
 	}
+	if _, err = d.CreateFile(""); !errors.Is(err, wantErr) {
+		t.Errorf("Error unknown: %v", err)
+	}
 	if _, err = d.WriteFile("", []byte{}); !errors.Is(err, wantErr) {
 		t.Errorf("Error unknown: %v", err)
 	}
@@ -87,6 +90,9 @@ func TestFSDelegator(t *testing.T) {
 			return nil, wantErr
 		},
 		SubFunc: func(_ string) (fs.FS, error) {
+			return nil, wantErr
+		},
+		CreateFileFunc: func(_ string) (WriterFile, error) {
 			return nil, wantErr
 		},
 		WriteFileFunc: func(_ string, _ []byte) (int, error) {

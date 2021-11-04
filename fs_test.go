@@ -1,18 +1,59 @@
 package io2
 
 import (
-	"errors"
 	"io/fs"
 	"reflect"
 	"testing"
 )
 
+func TestCreateFile(t *testing.T) {
+	want := &FileDelegator{}
+	called := false
+	fsys := &FSDelegator{
+		CreateFileFunc: func(name string) (WriterFile, error) {
+			called = true
+			return want, nil
+		},
+	}
+
+	got, err := CreateFile(fsys, "test.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !called {
+		t.Error("Error CreateFile is not called")
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Error CreateFile returns %v; want %v", got, want)
+	}
+}
+
+func TestCreateFile_ErrNotImplemented(t *testing.T) {
+	fsys := &OpenFSDelegator{}
+
+	name := "test.txt"
+	wantErr := &fs.PathError{Op: "CreateFile", Path: name, Err: ErrNotImplemented}
+
+	var err error
+	_, err = CreateFile(fsys, name)
+	if err == nil {
+		t.Errorf("Error CreateFile returns no error")
+	}
+	gotErr, ok := err.(*fs.PathError)
+	if !ok {
+		t.Errorf("Error CreateFile returns unknown error %v", err)
+	}
+	if !reflect.DeepEqual(gotErr, wantErr) {
+		t.Errorf("Error CreateFile returns unknown error %v; want %v", gotErr, wantErr)
+	}
+}
+
 func TestWriteFile(t *testing.T) {
 	want := 1
-	writeFileCalled := false
+	called := false
 	fsys := &FSDelegator{
 		WriteFileFunc: func(name string, p []byte) (int, error) {
-			writeFileCalled = true
+			called = true
 			return want, nil
 		},
 	}
@@ -21,7 +62,7 @@ func TestWriteFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !writeFileCalled {
+	if !called {
 		t.Error("Error WriteFile is not called")
 	}
 	if got != want {
@@ -29,80 +70,14 @@ func TestWriteFile(t *testing.T) {
 	}
 }
 
-type openOnlyFsTest struct {
-	file fs.File
-}
-
-func (fsys *openOnlyFsTest) Open(name string) (fs.File, error) {
-	return fsys.file, nil
-}
-
-func TestWriteFile_OpenWriteFile(t *testing.T) {
-	want := 1
-	writeCalled := false
-	fsys := &openOnlyFsTest{
-		file: &FileDelegator{
-			WriteFunc: func(p []byte) (int, error) {
-				writeCalled = true
-				return want, nil
-			},
-		},
-	}
-	got, err := WriteFile(fsys, "", []byte{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !writeCalled {
-		t.Error("Error Write is not called")
-	}
-	if got != want {
-		t.Errorf("Error Write returns %d; want %d", got, want)
-	}
-}
-
-func TestOpenWriteFile_OpenError(t *testing.T) {
-	wantErr := errors.New("test")
-	fsys := &FSDelegator{
-		OpenFunc: func(name string) (fs.File, error) {
-			return nil, wantErr
-		},
-	}
-
-	var gotErr error
-	_, gotErr = OpenWriteFile(fsys, "", []byte{})
-	if gotErr == nil {
-		t.Errorf("Error WriteFile returns no error")
-	}
-	if !reflect.DeepEqual(gotErr, wantErr) {
-		t.Errorf("Error WriteFile returns unknown error %v; want %v", gotErr, wantErr)
-	}
-}
-
-type readOnlyFileTest struct {
-}
-
-func (f *readOnlyFileTest) Stat() (fs.FileInfo, error) {
-	return nil, nil
-}
-
-func (f *readOnlyFileTest) Read(p []byte) (int, error) {
-	return 0, nil
-}
-
-func (f *readOnlyFileTest) Close() error {
-	return nil
-}
-
-func TestOpenWriteFile_ErrNotImplemented(t *testing.T) {
-	fsys := &openOnlyFsTest{
-		file: &readOnlyFileTest{},
-	}
+func TestWriteFile_ErrNotImplemented(t *testing.T) {
+	fsys := &OpenFSDelegator{}
 
 	name := "test.txt"
-	wantErr := &fs.PathError{Op: "Write", Path: name, Err: ErrNotImplemented}
+	wantErr := &fs.PathError{Op: "WriteFile", Path: name, Err: ErrNotImplemented}
 
 	var err error
-	_, err = OpenWriteFile(fsys, name, []byte{})
+	_, err = WriteFile(fsys, name, []byte{})
 	if err == nil {
 		t.Errorf("Error WriteFile returns no error")
 	}

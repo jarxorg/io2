@@ -7,10 +7,38 @@ import (
 	"io"
 	"io/fs"
 	"io/ioutil"
+	"log"
 	"os"
 
 	"github.com/jarxorg/io2"
+	"github.com/jarxorg/io2/osfs"
 )
+
+func ExampleWriteFile() {
+	tmpDir, err := ioutil.TempDir("", "example")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	name := "example.txt"
+	content := []byte(`Hello`)
+
+	fsys := osfs.DirFS(tmpDir)
+	_, err = io2.WriteFile(fsys, name, content)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	wrote, err := ioutil.ReadFile(tmpDir + "/" + name)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("%s\n", string(wrote))
+
+	// Output: Hello
+}
 
 func ExampleDelegateReader() {
 	org := bytes.NewReader([]byte(`original`))
@@ -25,24 +53,6 @@ func ExampleDelegateReader() {
 	fmt.Printf("Error: %v\n", err)
 
 	// Output: Error: custom
-}
-
-func ExampleNewWriteSeekerBuffer() {
-	o := io2.NewWriteSeekBuffer(0)
-	o.Write([]byte(`Hello!`))
-	o.Truncate(o.Len() - 1)
-	o.Write([]byte(` world!`))
-
-	fmt.Println(string(o.Bytes()))
-
-	o.Seek(-1, io.SeekEnd)
-	o.Write([]byte(`?`))
-
-	fmt.Println(string(o.Bytes()))
-
-	// Output:
-	// Hello world!
-	// Hello world?
 }
 
 func ExampleDelegateFS() {
@@ -74,4 +84,22 @@ func ExampleDelegateFile() {
 	fmt.Printf("Error: %v\n", err)
 
 	// Output: Error: custom
+}
+
+func ExampleNewWriteSeekerBuffer() {
+	o := io2.NewWriteSeekBuffer(0)
+	o.Write([]byte(`Hello!`))
+	o.Truncate(o.Len() - 1)
+	o.Write([]byte(` world!`))
+
+	fmt.Println(string(o.Bytes()))
+
+	o.Seek(-1, io.SeekEnd)
+	o.Write([]byte(`?`))
+
+	fmt.Println(string(o.Bytes()))
+
+	// Output:
+	// Hello world!
+	// Hello world?
 }

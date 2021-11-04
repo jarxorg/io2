@@ -30,6 +30,7 @@ type FSDelegator struct {
 	GlobFunc       func(pattern string) ([]string, error)
 	StatFunc       func(name string) (fs.FileInfo, error)
 	SubFunc        func(dir string) (fs.FS, error)
+	CreateFileFunc func(name string) (WriterFile, error)
 	WriteFileFunc  func(name string, p []byte) (int, error)
 	RemoveFileFunc func(name string) error
 	RemoveAllFunc  func(path string) error
@@ -92,6 +93,14 @@ func (d *FSDelegator) Sub(name string) (fs.FS, error) {
 		return nil, &fs.PathError{Op: "Sub", Path: name, Err: ErrNotImplemented}
 	}
 	return d.SubFunc(name)
+}
+
+// CreateFile calls CreateFileFunc(name).
+func (d *FSDelegator) CreateFile(name string) (WriterFile, error) {
+	if d.CreateFileFunc == nil {
+		return nil, &fs.PathError{Op: "CreateFile", Path: name, Err: ErrNotImplemented}
+	}
+	return d.CreateFileFunc(name)
 }
 
 // WriteFile calls WriteFileFunc(name).
@@ -160,6 +169,7 @@ func DelegateFS(fsys fs.FS) *FSDelegator {
 		}
 	}
 	if casted, ok := fsys.(WriteFileFS); ok {
+		d.CreateFileFunc = casted.CreateFile
 		d.WriteFileFunc = casted.WriteFile
 	}
 	if casted, ok := fsys.(RemoveFileFS); ok {
