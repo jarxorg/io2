@@ -72,3 +72,28 @@ func RemoveAll(fsys fs.FS, path string) error {
 	}
 	return &fs.PathError{Op: "RemoveAll", Path: path, Err: ErrNotImplemented}
 }
+
+// CopyFS walks the specified root directory on src and copies directories and
+// files to dest filesystem.
+func CopyFS(dest, src fs.FS, root string) error {
+	return fs.WalkDir(src, root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d == nil {
+			return err
+		}
+		if d.IsDir() {
+			return MkdirAll(dest, path, d.Type())
+		}
+		srcFile, err := src.Open(path)
+		if err != nil {
+			return err
+		}
+		destFile, err := CreateFile(dest, path, d.Type())
+		if err != nil {
+			return err
+		}
+		defer destFile.Close()
+
+		_, err = io.Copy(destFile, srcFile)
+		return err
+	})
+}
