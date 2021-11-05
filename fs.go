@@ -12,27 +12,37 @@ type WriterFile interface {
 }
 
 // WriteFileFS is the interface implemented by a filesystem that provides an
-// optimized implementation of WriteFile.
+// optimized implementation of MkdirAll, CreateFile, WriteFile.
 type WriteFileFS interface {
 	fs.FS
-	CreateFile(name string) (WriterFile, error)
-	WriteFile(name string, p []byte) (n int, err error)
+	MkdirAll(dir string, mode fs.FileMode) error
+	CreateFile(name string, mode fs.FileMode) (WriterFile, error)
+	WriteFile(name string, p []byte, mode fs.FileMode) (n int, err error)
+}
+
+// MkdirAll creates the named directory. If the filesystem implements
+// WriteFileFS calls fsys.MkdirAll otherwise returns a PathError.
+func MkdirAll(fsys fs.FS, dir string, mode fs.FileMode) error {
+	if fsys, ok := fsys.(WriteFileFS); ok {
+		return fsys.MkdirAll(dir, mode)
+	}
+	return &fs.PathError{Op: "MkdirAll", Path: dir, Err: ErrNotImplemented}
 }
 
 // CreateFile creates the named file. If the filesystem implements
 // WriteFileFS calls fsys.CreateFile otherwise returns a PathError.
-func CreateFile(fsys fs.FS, name string) (WriterFile, error) {
+func CreateFile(fsys fs.FS, name string, mode fs.FileMode) (WriterFile, error) {
 	if fsys, ok := fsys.(WriteFileFS); ok {
-		return fsys.CreateFile(name)
+		return fsys.CreateFile(name, mode)
 	}
 	return nil, &fs.PathError{Op: "CreateFile", Path: name, Err: ErrNotImplemented}
 }
 
 // WriteFile writes the specified bytes to the named file. If the filesystem implements
 // WriteFileFS calls fsys.WriteFile otherwise returns a PathError.
-func WriteFile(fsys fs.FS, name string, p []byte) (n int, err error) {
+func WriteFile(fsys fs.FS, name string, p []byte, mode fs.FileMode) (n int, err error) {
 	if fsys, ok := fsys.(WriteFileFS); ok {
-		return fsys.WriteFile(name, p)
+		return fsys.WriteFile(name, p, mode)
 	}
 	return 0, &fs.PathError{Op: "WriteFile", Path: name, Err: ErrNotImplemented}
 }
@@ -61,4 +71,29 @@ func RemoveAll(fsys fs.FS, path string) error {
 		return fsys.RemoveAll(path)
 	}
 	return &fs.PathError{Op: "RemoveAll", Path: path, Err: ErrNotImplemented}
+}
+
+// CopyFS walks the specified root directory on src and copies directories and
+// files to dest filesystem.
+func CopyFS(dest, src fs.FS, root string) error {
+	return fs.WalkDir(src, root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d == nil {
+			return err
+		}
+		if d.IsDir() {
+			return MkdirAll(dest, path, d.Type())
+		}
+		srcFile, err := src.Open(path)
+		if err != nil {
+			return err
+		}
+		destFile, err := CreateFile(dest, path, d.Type())
+		if err != nil {
+			return err
+		}
+		defer destFile.Close()
+
+		_, err = io.Copy(destFile, srcFile)
+		return err
+	})
 }

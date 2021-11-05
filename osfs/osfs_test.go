@@ -29,7 +29,7 @@ func TestCreateFile(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	fsys := DirFS(tmpDir)
-	got, err := io2.CreateFile(fsys, "test.txt")
+	got, err := io2.CreateFile(fsys, "test.txt", fs.ModePerm)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,7 +53,7 @@ func TestCreateFile_MkdirAllError(t *testing.T) {
 
 	fsys := DirFS(tmpDir)
 	var gotErr error
-	_, gotErr = io2.CreateFile(fsys, "name.txt")
+	_, gotErr = io2.CreateFile(fsys, "name.txt", fs.ModePerm)
 
 	if !reflect.DeepEqual(gotErr, wantErr) {
 		t.Errorf("Error CreateFile returns unknown error %v; want %v", gotErr, wantErr)
@@ -71,7 +71,7 @@ func TestWriteFile(t *testing.T) {
 	want := []byte(`test`)
 
 	fsys := DirFS(tmpDir)
-	n, err := io2.WriteFile(fsys, name, want)
+	n, err := io2.WriteFile(fsys, name, want, fs.ModePerm)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,7 +96,7 @@ func TestWriteFile_InvalidError(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	fsys := DirFS(tmpDir)
-	_, err = io2.WriteFile(fsys, "../invalid.txt", []byte{})
+	_, err = io2.WriteFile(fsys, "../invalid.txt", []byte{}, fs.ModePerm)
 	if err == nil {
 		t.Fatal("Error WriteFile returns no error")
 	}
@@ -148,7 +148,7 @@ func TestSub_WriteFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	n, err := io2.WriteFile(fsys, name, want)
+	n, err := io2.WriteFile(fsys, name, want, fs.ModePerm)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,7 +175,7 @@ func TestRemoveFile(t *testing.T) {
 	fsys := DirFS(tmpDir)
 	name := "test.txt"
 
-	if err = ioutil.WriteFile(tmpDir+"/"+name, []byte{}, defaultFileMode); err != nil {
+	if err = ioutil.WriteFile(tmpDir+"/"+name, []byte{}, fs.ModePerm); err != nil {
 		t.Fatal(err)
 	}
 
@@ -210,10 +210,10 @@ func TestRemoveAll(t *testing.T) {
 	path := "dir"
 	name := "test.txt"
 
-	if err = os.Mkdir(tmpDir+"/"+path, defaultFileMode); err != nil {
+	if err = os.Mkdir(tmpDir+"/"+path, fs.ModePerm); err != nil {
 		t.Fatal(err)
 	}
-	if err = ioutil.WriteFile(tmpDir+"/"+path+"/"+name, []byte{}, defaultFileMode); err != nil {
+	if err = ioutil.WriteFile(tmpDir+"/"+path+"/"+name, []byte{}, fs.ModePerm); err != nil {
 		t.Fatal(err)
 	}
 

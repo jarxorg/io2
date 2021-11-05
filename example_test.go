@@ -25,7 +25,7 @@ func ExampleWriteFile() {
 	content := []byte(`Hello`)
 
 	fsys := osfs.DirFS(tmpDir)
-	_, err = io2.WriteFile(fsys, name, content)
+	_, err = io2.WriteFile(fsys, name, content, fs.ModePerm)
 	if err != nil {
 		log.Fatal(err)
 	}
