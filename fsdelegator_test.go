@@ -52,10 +52,13 @@ func testFSDelegatorErrors(t *testing.T, d *FSDelegator, wantErr error) {
 	if _, err = d.Sub(""); !errors.Is(err, wantErr) {
 		t.Errorf("Error unknown: %v", err)
 	}
-	if _, err = d.CreateFile(""); !errors.Is(err, wantErr) {
+	if err = d.MkdirAll("", fs.ModePerm); err != nil {
 		t.Errorf("Error unknown: %v", err)
 	}
-	if _, err = d.WriteFile("", []byte{}); !errors.Is(err, wantErr) {
+	if _, err = d.CreateFile("", fs.ModePerm); !errors.Is(err, wantErr) {
+		t.Errorf("Error unknown: %v", err)
+	}
+	if _, err = d.WriteFile("", []byte{}, fs.ModePerm); !errors.Is(err, wantErr) {
 		t.Errorf("Error unknown: %v", err)
 	}
 	if err = d.RemoveFile(""); !errors.Is(err, wantErr) {
@@ -92,10 +95,13 @@ func TestFSDelegator(t *testing.T) {
 		SubFunc: func(_ string) (fs.FS, error) {
 			return nil, wantErr
 		},
-		CreateFileFunc: func(_ string) (WriterFile, error) {
+		MkdirAllFunc: func(_ string, _ fs.FileMode) error {
+			return nil
+		},
+		CreateFileFunc: func(_ string, _ fs.FileMode) (WriterFile, error) {
 			return nil, wantErr
 		},
-		WriteFileFunc: func(_ string, _ []byte) (int, error) {
+		WriteFileFunc: func(_ string, _ []byte, _ fs.FileMode) (int, error) {
 			return 0, wantErr
 		},
 		RemoveFileFunc: func(_ string) error {

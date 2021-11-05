@@ -30,8 +30,9 @@ type FSDelegator struct {
 	GlobFunc       func(pattern string) ([]string, error)
 	StatFunc       func(name string) (fs.FileInfo, error)
 	SubFunc        func(dir string) (fs.FS, error)
-	CreateFileFunc func(name string) (WriterFile, error)
-	WriteFileFunc  func(name string, p []byte) (int, error)
+	MkdirAllFunc   func(dir string, mode fs.FileMode) error
+	CreateFileFunc func(name string, mode fs.FileMode) (WriterFile, error)
+	WriteFileFunc  func(name string, p []byte, mode fs.FileMode) (int, error)
 	RemoveFileFunc func(name string) error
 	RemoveAllFunc  func(path string) error
 }
@@ -95,20 +96,29 @@ func (d *FSDelegator) Sub(name string) (fs.FS, error) {
 	return d.SubFunc(name)
 }
 
+// MkdirAll calls MkdirAllFunc(dir).
+func (d *FSDelegator) MkdirAll(dir string, mode fs.FileMode) error {
+	if d.MkdirAllFunc == nil {
+		// NOTE: return no error.
+		return nil
+	}
+	return d.MkdirAllFunc(dir, mode)
+}
+
 // CreateFile calls CreateFileFunc(name).
-func (d *FSDelegator) CreateFile(name string) (WriterFile, error) {
+func (d *FSDelegator) CreateFile(name string, mode fs.FileMode) (WriterFile, error) {
 	if d.CreateFileFunc == nil {
 		return nil, &fs.PathError{Op: "CreateFile", Path: name, Err: ErrNotImplemented}
 	}
-	return d.CreateFileFunc(name)
+	return d.CreateFileFunc(name, mode)
 }
 
 // WriteFile calls WriteFileFunc(name).
-func (d *FSDelegator) WriteFile(name string, p []byte) (int, error) {
+func (d *FSDelegator) WriteFile(name string, p []byte, mode fs.FileMode) (int, error) {
 	if d.WriteFileFunc == nil {
 		return 0, &fs.PathError{Op: "WriteFile", Path: name, Err: ErrNotImplemented}
 	}
-	return d.WriteFileFunc(name, p)
+	return d.WriteFileFunc(name, p, mode)
 }
 
 // RemoveFile calls RemoveFileFunc(name).

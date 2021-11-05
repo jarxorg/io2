@@ -11,9 +11,6 @@ import (
 	"github.com/jarxorg/io2"
 )
 
-// defaultFileMode is specified by creating directories and files.
-const defaultFileMode = 0755
-
 // DirFS returns a filesystem for the tree of files rooted at the directory dir.
 // The filesystem can write using io2.WriteFile(fsys fs.FS, name string, p []byte).
 func DirFS(dir string) fs.FS {
@@ -104,14 +101,21 @@ func (fsys *OSFS) Sub(dir string) (fs.FS, error) {
 	return NewOSFS(filepath.Join(fsys.Dir, dir)), nil
 }
 
-// CreateFile creates the named file.
-func (fsys *OSFS) CreateFile(name string) (io2.WriterFile, error) {
-	if isInvalidPath(name) {
-		return nil, &os.PathError{Op: "Create", Path: name, Err: os.ErrInvalid}
+// MkdirAll creates the named directory.
+func (fsys *OSFS) MkdirAll(dir string, mode fs.FileMode) error {
+	if isInvalidPath(dir) {
+		return &fs.PathError{Op: "MkdirAll", Path: dir, Err: fs.ErrInvalid}
 	}
+	return osMkdirAllFunc(filepath.Join(fsys.Dir, dir), mode)
+}
 
+// CreateFile creates the named file.
+func (fsys *OSFS) CreateFile(name string, mode fs.FileMode) (io2.WriterFile, error) {
+	if isInvalidPath(name) {
+		return nil, &fs.PathError{Op: "Create", Path: name, Err: fs.ErrInvalid}
+	}
 	path := filepath.Join(fsys.Dir, name)
-	err := osMkdirAllFunc(filepath.Dir(path), defaultFileMode)
+	err := osMkdirAllFunc(filepath.Dir(path), mode)
 	if err != nil {
 		return nil, err
 	}
@@ -119,8 +123,8 @@ func (fsys *OSFS) CreateFile(name string) (io2.WriterFile, error) {
 }
 
 // WriteFile writes the specified bytes to the named file.
-func (fsys *OSFS) WriteFile(name string, p []byte) (int, error) {
-	f, err := fsys.CreateFile(name)
+func (fsys *OSFS) WriteFile(name string, p []byte, mode fs.FileMode) (int, error) {
+	f, err := fsys.CreateFile(name, mode)
 	if err != nil {
 		return 0, err
 	}
@@ -132,7 +136,7 @@ func (fsys *OSFS) WriteFile(name string, p []byte) (int, error) {
 // RemoveFile removes the specified named file.
 func (fsys *OSFS) RemoveFile(name string) error {
 	if isInvalidPath(name) {
-		return &os.PathError{Op: "remove", Path: name, Err: os.ErrInvalid}
+		return &fs.PathError{Op: "Remove", Path: name, Err: fs.ErrInvalid}
 	}
 	return osRemoveFunc(filepath.Join(fsys.Dir, name))
 }
@@ -140,7 +144,7 @@ func (fsys *OSFS) RemoveFile(name string) error {
 // RemoveAll removes path and any children it contains.
 func (fsys *OSFS) RemoveAll(path string) error {
 	if isInvalidPath(path) {
-		return &os.PathError{Op: "removeAll", Path: path, Err: os.ErrInvalid}
+		return &fs.PathError{Op: "RemoveAll", Path: path, Err: fs.ErrInvalid}
 	}
 	return osRemoveAllFunc(filepath.Join(fsys.Dir, path))
 }
