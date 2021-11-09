@@ -39,6 +39,7 @@ func main() {
   }
 
   fmt.Printf("%v\n", names)
+
   // Output: [osfs/testdata/dir0/file01.txt osfs/testdata/dir0/file02.txt]
 }
 ```
