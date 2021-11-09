@@ -11,6 +11,38 @@ Go "io" and "io/fs" package utilities.
 - [osfs](https://github.com/jarxorg/io2/tree/main/osfs)
 - [memfs](https://github.com/jarxorg/io2/tree/main/memfs)
 
+```go
+package main
+
+import (
+  "fmt"
+  "io/fs"
+  "log"
+
+  "github.com/jarxorg/io2"
+  "github.com/jarxorg/io2/memfs"
+  "github.com/jarxorg/io2/osfs"
+)
+
+func main() {
+  osFsys := osfs.DirFS(".")
+  memFsys := memfs.New()
+
+  err := io2.CopyFS(memFsys, osFsys, "osfs/testdata")
+  if err != nil {
+    log.Fatal(err)
+  }
+
+  names, err := fs.Glob(memFsys, "osfs/testdata/dir0/*.txt")
+  if err != nil {
+    log.Fatal(err)
+  }
+
+  fmt.Printf("%v\n", names)
+  // Output: [osfs/testdata/dir0/file01.txt osfs/testdata/dir0/file02.txt]
+}
+```
+
 ## Delegator
 
 Delegator implements io.Reader, io.Writer, io.Seeker, io.Closer.
