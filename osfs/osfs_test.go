@@ -12,12 +12,31 @@ import (
 	"github.com/jarxorg/io2"
 )
 
-func TestDirFS_TestFS(t *testing.T) {
+func TestFS(t *testing.T) {
 	if err := fstest.TestFS(DirFS("testdata"), "dir0"); err != nil {
 		t.Errorf("Error testing/fstest: %+v", err)
 	}
 	if err := fstest.TestFS(DirFS("testdata"), "dir0/file01.txt"); err != nil {
 		t.Errorf("Error testing/fstest: %+v", err)
+	}
+}
+
+func TestMkdirAll(t *testing.T) {
+	tmpDir, err := ioutil.TempDir("", "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	fsys := NewOSFS(tmpDir)
+	err = fsys.MkdirAll("dir", fs.ModePerm)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = fsys.MkdirAll("../invalid", fs.ModePerm)
+	if err == nil {
+		t.Fatal(err)
 	}
 }
 
