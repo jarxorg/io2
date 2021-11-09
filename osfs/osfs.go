@@ -14,7 +14,7 @@ import (
 // DirFS returns a filesystem for the tree of files rooted at the directory dir.
 // The filesystem can write using io2.WriteFile(fsys fs.FS, name string, p []byte).
 func DirFS(dir string) fs.FS {
-	return NewOSFS(dir)
+	return New(dir)
 }
 
 // containsDenyWin reports whether any path characters of windows are within s.
@@ -61,7 +61,13 @@ var (
 )
 
 // NewOSFS returns a filesystem for the tree of files rooted at the directory dir.
+// Deprecated: Use New.
 func NewOSFS(dir string) *OSFS {
+	return New(dir)
+}
+
+// New returns a filesystem for the tree of files rooted at the directory dir.
+func New(dir string) *OSFS {
 	return &OSFS{
 		Dir:  dir,
 		osFS: io2.DelegateFS(os.DirFS(dir)),
