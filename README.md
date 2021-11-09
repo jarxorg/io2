@@ -6,48 +6,10 @@
 
 Go "io" and "io/fs" package utilities.
 
-## Writable io/fs implementations for the OS
+## Writable io/fs.FS implementations
 
-```go
-package main
-
-import (
-  "fmt"
-  "io/fs"
-  "io/ioutil"
-  "log"
-  "os"
-
-  "github.com/jarxorg/io2"
-  "github.com/jarxorg/io2/osfs"
-)
-
-func func main() {
-  tmpDir, err := ioutil.TempDir("", "example")
-  if err != nil {
-    log.Fatal(err)
-  }
-  defer os.RemoveAll(tmpDir)
-
-  name := "example.txt"
-  content := []byte(`Hello`)
-
-  fsys := osfs.DirFS(tmpDir)
-  _, err = io2.WriteFile(fsys, name, content, fs.ModePerm)
-  if err != nil {
-    log.Fatal(err)
-  }
-
-  wrote, err := ioutil.ReadFile(tmpDir + "/" + name)
-  if err != nil {
-    log.Fatal(err)
-  }
-
-  fmt.Printf("%s\n", string(wrote))
-
-  // Output: Hello
-}
-```
+- [osfs](https://github.com/jarxorg/io2/tree/main/osfs)
+- [memfs](https://github.com/jarxorg/io2/tree/main/memfs)
 
 ## Delegator
 
