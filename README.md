@@ -2,6 +2,7 @@
 
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/jarxorg/io2)](https://pkg.go.dev/github.com/jarxorg/io2)
 [![Report Card](https://goreportcard.com/badge/github.com/jarxorg/io2)](https://goreportcard.com/report/github.com/jarxorg/io2)
+[![Coverage Status](https://coveralls.io/repos/github/jarxorg/io2/badge.svg?branch=main)](https://coveralls.io/github/jarxorg/io2?branch=main)
 
 Go "io" and "io/fs" package utilities.
 
