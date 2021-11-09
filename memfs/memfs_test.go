@@ -198,10 +198,14 @@ func TestReadDir(t *testing.T) {
 			},
 			dir: "dir0",
 		}, {
-			dir: "not-found",
+			dir:    "not-found",
+			errStr: "Open not-found: file does not exist",
+		}, {
+			dir:    "dir0/file01.txt",
+			errStr: "ReadDir dir0/file01.txt: not a directory",
 		}, {
 			dir:    "../invalid",
-			errStr: "ReadDir ../invalid: invalid argument",
+			errStr: "Open ../invalid: invalid argument",
 		},
 	}
 
@@ -328,7 +332,7 @@ func TestWriteFile(t *testing.T) {
 		{
 			name: "new.txt",
 		}, {
-			name:   "dir0/file01.txt",
+			name: "dir0/file01.txt",
 		}, {
 			name:   "dir0",
 			errStr: "Create dir0: invalid argument",
@@ -394,7 +398,7 @@ func TestRemoveAll(t *testing.T) {
 
 	var want []string
 	for _, k := range fsys.store.keys {
-		if !strings.HasPrefix(k, "/" + dir) {
+		if !strings.HasPrefix(k, "/"+dir) {
 			want = append(want, k)
 		}
 	}
@@ -422,6 +426,26 @@ func TestRemoveAll_Errors(t *testing.T) {
 	}
 }
 
+func TestMemFile_Read_Errors(t *testing.T) {
+	fsys := newMemFSTest(t)
+	name := "dir0"
+
+	f, err := fsys.Open(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	memf, ok := f.(*MemFile)
+	if !ok {
+		t.Fatalf(`Fatal not MemFile: %#v`, f)
+	}
+
+	_, err = memf.Read([]byte{})
+	if err == nil {
+		t.Fatalf(`Fatal Read(1) returns no error`)
+	}
+}
+
 func TestMemFile_ReadDir(t *testing.T) {
 	fsys := newMemFSTest(t)
 	dir := "dir0"
@@ -438,7 +462,7 @@ func TestMemFile_ReadDir(t *testing.T) {
 
 	testCases := []struct {
 		name string
-		err error
+		err  error
 	}{
 		{
 			name: "file01.txt",

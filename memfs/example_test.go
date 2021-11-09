@@ -2,8 +2,8 @@ package memfs_test
 
 import (
 	"fmt"
-	"log"
 	"io/fs"
+	"log"
 
 	"github.com/jarxorg/io2"
 	"github.com/jarxorg/io2/memfs"
