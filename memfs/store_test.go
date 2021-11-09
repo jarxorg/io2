@@ -208,18 +208,18 @@ func TestStore_prefixGlobKeys(t *testing.T) {
 	s := newStoreTest()
 	for _, tc := range testCases {
 		got, err := s.prefixGlobKeys(tc.prefix, tc.pattern)
-    errStr := ""
+		errStr := ""
 		if err != nil {
-      errStr = err.Error()
-    }
+			errStr = err.Error()
+		}
 		if errStr != tc.errStr {
 			t.Errorf(`Error prefixGlobKeys("%s", "%s") error got "%s"; want "%s"`,
-        tc.prefix, tc.pattern, errStr, tc.errStr)
+				tc.prefix, tc.pattern, errStr, tc.errStr)
 			continue
 		}
 		if !reflect.DeepEqual(got, tc.want) {
 			t.Errorf(`Error prefixGlobKeys("%s", "%s") got %v; want %v`,
-        tc.prefix, tc.pattern, got, tc.want)
+				tc.prefix, tc.pattern, got, tc.want)
 		}
 	}
 }

@@ -1,12 +1,12 @@
 package memfs
 
 import (
-  "io/fs"
+	"io/fs"
 	"path"
-  "path/filepath"
+	"path/filepath"
 	"sort"
 	"strings"
-  "time"
+	"time"
 )
 
 // Value works as fs.DirEntry or fs.FileInfo.
@@ -87,7 +87,7 @@ func (s *store) put(k string, v *value) *value {
 }
 
 func (s *store) remove(key string) *value {
-  i := s.keyIndex(key)
+	i := s.keyIndex(key)
 	if i == -1 {
 		return nil
 	}
@@ -98,40 +98,40 @@ func (s *store) remove(key string) *value {
 }
 
 func (s *store) removeAll(prefix string) {
-  from := s.keyIndex(prefix)
-  if from == -1 {
-    return
-  }
+	from := s.keyIndex(prefix)
+	if from == -1 {
+		return
+	}
 
-  max := len(s.keys)
-  to := -1
-  for i := from; i < max; i++ {
-    key := s.keys[i]
-    if !strings.HasPrefix(key, prefix) {
-      break
-    }
-    delete(s.values, key)
-    to = i
-  }
-  s.keys = append(s.keys[0:from], s.keys[to+1:]...)
+	max := len(s.keys)
+	to := -1
+	for i := from; i < max; i++ {
+		key := s.keys[i]
+		if !strings.HasPrefix(key, prefix) {
+			break
+		}
+		delete(s.values, key)
+		to = i
+	}
+	s.keys = append(s.keys[0:from], s.keys[to+1:]...)
 }
 
 func (s *store) keyIndex(key string) int {
-  i := sort.SearchStrings(s.keys, key)
-  if i < len(s.keys) && s.keys[i] == key {
-    return i
-  }
-  return -1
+	i := sort.SearchStrings(s.keys, key)
+	if i < len(s.keys) && s.keys[i] == key {
+		return i
+	}
+	return -1
 }
 
 func (s *store) prefixKeys(prefix string) []string {
-  i := s.keyIndex(prefix)
+	i := s.keyIndex(prefix)
 	if i == -1 {
 		return nil
 	}
-  if !strings.HasSuffix(prefix, "/") {
-    prefix = prefix + "/"
-  }
+	if !strings.HasSuffix(prefix, "/") {
+		prefix = prefix + "/"
+	}
 
 	var keys []string
 	max := len(s.keys)
@@ -149,13 +149,13 @@ func (s *store) prefixKeys(prefix string) []string {
 }
 
 func (s *store) prefixGlobKeys(prefix, pattern string) ([]string, error) {
-  i := s.keyIndex(prefix)
+	i := s.keyIndex(prefix)
 	if i == -1 {
 		return nil, nil
 	}
-  if !strings.HasSuffix(prefix, "/") {
-    prefix = prefix + "/"
-  }
+	if !strings.HasSuffix(prefix, "/") {
+		prefix = prefix + "/"
+	}
 
 	var keys []string
 	max := len(s.keys)

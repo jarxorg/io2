@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 
 	"github.com/jarxorg/io2"
 )
@@ -108,6 +109,7 @@ func (fsys *MemFS) Open(name string) (fs.File, error) {
 	f := &MemFile{
 		fsys: fsys,
 		name: name,
+		mode: v.mode,
 	}
 	if !v.isDir {
 		f.buf = bytes.NewBuffer(v.data)
@@ -147,9 +149,14 @@ func (fsys *MemFS) ReadDir(dir string) ([]fs.DirEntry, error) {
 	fsys.mutex.Lock()
 	defer fsys.mutex.Unlock()
 
-	if !fs.ValidPath(dir) {
-		return nil, &fs.PathError{Op: "ReadDir", Path: dir, Err: fs.ErrInvalid}
+	v, err := fsys.open(dir)
+	if err != nil {
+		return nil, err
 	}
+	if !v.isDir {
+		return nil, &fs.PathError{Op: "ReadDir", Path: dir, Err: syscall.ENOTDIR}
+	}
+
 	prefix := fsys.key(dir)
 	keys := fsys.store.prefixKeys(prefix)
 	var dirEntries []fs.DirEntry
@@ -289,6 +296,9 @@ var (
 
 // Read reads bytes from this file.
 func (f *MemFile) Read(p []byte) (int, error) {
+	if f.buf == nil {
+		return 0, &fs.PathError{Op: "Read", Path: f.name, Err: syscall.EISDIR}
+	}
 	return f.buf.Read(p)
 }
 
