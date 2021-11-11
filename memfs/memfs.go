@@ -330,15 +330,12 @@ func (f *MemFile) ReadDir(n int) ([]fs.DirEntry, error) {
 	}
 	max := len(f.dirEntries)
 	if f.dirIndex >= max {
-		if n == -1 {
+		if n <= 0 {
 			return nil, nil
 		}
 		return nil, io.EOF
 	}
-	if n == 0 {
-		return nil, nil
-	}
-	if n == -1 {
+	if n <= 0 {
 		n = max - f.dirIndex
 	}
 	end := f.dirIndex + n
