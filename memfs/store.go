@@ -23,39 +23,39 @@ var (
 	_ fs.FileInfo = (*value)(nil)
 )
 
-func (e *value) Name() string {
-	return filepath.Base(e.name)
+func (v *value) Name() string {
+	return filepath.Base(v.name)
 }
 
-func (e *value) Size() int64 {
-	if e.isDir {
+func (v *value) Size() int64 {
+	if v.isDir {
 		return 0
 	}
-	return int64(len(e.data))
+	return int64(len(v.data))
 }
 
-func (e *value) Mode() fs.FileMode {
-	return e.mode
+func (v *value) Mode() fs.FileMode {
+	return v.mode
 }
 
-func (e *value) ModTime() time.Time {
-	return e.modTime
+func (v *value) ModTime() time.Time {
+	return v.modTime
 }
 
-func (e *value) IsDir() bool {
-	return e.isDir
+func (v *value) IsDir() bool {
+	return v.isDir
 }
 
-func (e *value) Sys() interface{} {
+func (v *value) Sys() interface{} {
 	return nil
 }
 
-func (e *value) Type() fs.FileMode {
-	return e.mode
+func (v *value) Type() fs.FileMode {
+	return v.mode
 }
 
-func (e *value) Info() (fs.FileInfo, error) {
-	return e, nil
+func (v *value) Info() (fs.FileInfo, error) {
+	return v, nil
 }
 
 // Store represents an in-memory key value store.

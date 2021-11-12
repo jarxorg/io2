@@ -513,26 +513,3 @@ func TestMemFile_ReadDir_Errors(t *testing.T) {
 		t.Fatalf(`Fatal ReadDir(1) returns no error`)
 	}
 }
-
-func TestMemFile_ReadDir0(t *testing.T) {
-	fsys := newMemFSTest(t)
-	dir := "dir0"
-
-	f, err := fsys.Open(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	memf, ok := f.(*MemFile)
-	if !ok {
-		t.Fatalf(`Fatal not MemFile: %#v`, f)
-	}
-
-	entries, err := memf.ReadDir(0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(entries) != 0 {
-		t.Errorf(`Error ReadDir(0) returns unknown entries %v`, entries)
-	}
-}
