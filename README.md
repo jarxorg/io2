@@ -10,6 +10,7 @@ Go "io" and "io/fs" package utilities.
 
 - [osfs](https://github.com/jarxorg/io2/tree/main/osfs)
 - [memfs](https://github.com/jarxorg/io2/tree/main/memfs)
+- [s3fs](https://github.com/jarxorg/s3fs)
 
 ```go
 package main
