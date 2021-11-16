@@ -2,6 +2,7 @@ package io2
 
 import (
 	"io/fs"
+	"time"
 )
 
 // OpenFSDelegator implements fs.FS interface.
@@ -17,7 +18,7 @@ func (d *OpenFSDelegator) Open(name string) (fs.File, error) {
 	return d.OpenFunc(name)
 }
 
-// DelegateOpenFS returns a OpenFSDelegator delegate fsys.Open.
+// DelegateOpenFS returns a OpenFSDelegator delegates fsys.Open.
 func DelegateOpenFS(fsys fs.FS) *OpenFSDelegator {
 	return &OpenFSDelegator{OpenFunc: fsys.Open}
 }
@@ -137,7 +138,7 @@ func (d *FSDelegator) RemoveAll(path string) error {
 	return d.RemoveAllFunc(path)
 }
 
-// DelegateFS returns a FSDelegator delegate the functions of the specified filesystem.
+// DelegateFS returns a FSDelegator delegates the functions of the specified filesystem.
 // If you want to delegate an open only filesystem like os.DirFS(dir string) use DelegateOpenFS instead.
 func DelegateFS(fsys fs.FS) *FSDelegator {
 	d := &FSDelegator{
@@ -245,7 +246,7 @@ func (f *FileDelegator) Write(p []byte) (int, error) {
 	return f.WriteFunc(p)
 }
 
-// DelegateFile returns a FileDelegator delegate the functions of the specified file.
+// DelegateFile returns a FileDelegator delegates the functions of the specified file.
 func DelegateFile(f fs.File) *FileDelegator {
 	d := &FileDelegator{
 		StatFunc:  f.Stat,
@@ -259,4 +260,115 @@ func DelegateFile(f fs.File) *FileDelegator {
 		d.WriteFunc = f.Write
 	}
 	return d
+}
+
+// DirEntryValues holds values for fs.DirEntry.
+type DirEntryValues struct {
+	Name  string
+	IsDir bool
+	Type  fs.FileMode
+	Info  fs.FileInfo
+}
+
+// DirEntryDelegator implements fs.DirEntry.
+type DirEntryDelegator struct {
+	Values   DirEntryValues
+	InfoFunc func() (fs.FileInfo, error)
+}
+
+var _ (fs.DirEntry) = (*DirEntryDelegator)(nil)
+
+// Name returns d.Values.Name.
+func (d *DirEntryDelegator) Name() string {
+	return d.Values.Name
+}
+
+// IsDir returns d.Values.IsDir.
+func (d *DirEntryDelegator) IsDir() bool {
+	return d.Values.IsDir
+}
+
+// Type returns d.Values.Type.
+func (d *DirEntryDelegator) Type() fs.FileMode {
+	return d.Values.Type
+}
+
+// Info calls d.InfoFunc if the function is set otherwise returns d.Values.Info.
+func (d *DirEntryDelegator) Info() (fs.FileInfo, error) {
+	if d.InfoFunc != nil {
+		return d.InfoFunc()
+	}
+	return d.Values.Info, nil
+}
+
+// DelegateDirEntry returns a DirEntryDelegator delegates the functions of the specified DirEntry.
+func DelegateDirEntry(d fs.DirEntry) *DirEntryDelegator {
+	return &DirEntryDelegator{
+		Values: DirEntryValues{
+			Name:  d.Name(),
+			IsDir: d.IsDir(),
+			Type:  d.Type(),
+		},
+		InfoFunc: d.Info,
+	}
+}
+
+// FileInfoValues holds values for fs.FileInfo.
+type FileInfoValues struct {
+	Name    string
+	Size    int64
+	Mode    fs.FileMode
+	ModTime time.Time
+	IsDir   bool
+	Sys     interface{}
+}
+
+// FileInfoDelegator implements fs.FileInfo.
+type FileInfoDelegator struct {
+	Values FileInfoValues
+}
+
+var _ (fs.FileInfo) = (*FileInfoDelegator)(nil)
+
+// Name returns d.Values.Name.
+func (d *FileInfoDelegator) Name() string {
+	return d.Values.Name
+}
+
+// Size returns d.Values.Size.
+func (d *FileInfoDelegator) Size() int64 {
+	return d.Values.Size
+}
+
+// Mode returns d.Values.Mode.
+func (d *FileInfoDelegator) Mode() fs.FileMode {
+	return d.Values.Mode
+}
+
+// ModTime returns d.Values.ModTime.
+func (d *FileInfoDelegator) ModTime() time.Time {
+	return d.Values.ModTime
+}
+
+func (d *FileInfoDelegator) IsDir() bool {
+	return d.Values.IsDir
+}
+
+// Sys returns d.Values.Sys.
+func (d *FileInfoDelegator) Sys() interface{} {
+	return d.Values.Sys
+}
+
+// DelegateFileInfo returns a FileInfoDelegator delegates the functions of the specified FileInfo.
+func DelegateFileInfo(info fs.FileInfo) *FileInfoDelegator {
+	return &FileInfoDelegator{
+		Values: FileInfoValues{
+			Name:    info.Name(),
+			Size:    info.Size(),
+			Mode:    info.Mode(),
+			ModTime: info.ModTime(),
+			IsDir:   info.IsDir(),
+			Sys:     info.Sys(),
+		},
+	}
 }
