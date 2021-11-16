@@ -38,7 +38,7 @@ func TestValue(t *testing.T) {
 	if sys := v.Sys(); sys != nil {
 		t.Errorf(`Sys returns %v; want nil`, sys)
 	}
-	if typ := v.Type(); typ != v.mode {
+	if typ := v.Type(); typ != v.mode&fs.ModeType {
 		t.Errorf(`Type returns %v; want %v`, typ, v.mode)
 	}
 	info, err := v.Info()

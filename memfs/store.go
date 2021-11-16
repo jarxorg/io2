@@ -51,7 +51,7 @@ func (v *value) Sys() interface{} {
 }
 
 func (v *value) Type() fs.FileMode {
-	return v.mode
+	return v.mode & fs.ModeType
 }
 
 func (v *value) Info() (fs.FileInfo, error) {
