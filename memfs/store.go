@@ -141,7 +141,7 @@ func (s *store) prefixKeys(prefix string) []string {
 			break
 		}
 		if strings.Contains(key[len(prefix):], "/") {
-			break
+			continue
 		}
 		keys = append(keys, key)
 	}
