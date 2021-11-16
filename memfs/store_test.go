@@ -58,6 +58,8 @@ var testStoreSrc = map[string]*value{
 	"/dir1":            {name: "dir0", mode: fs.ModePerm, isDir: true},
 	"/dir1/file11.txt": {name: "dir1/file11.txt", mode: fs.ModePerm, isDir: false},
 	"/dir1/file12.txt": {name: "dir1/file12.txt", mode: fs.ModePerm, isDir: false},
+	"/file1.txt":       {name: "file1.txt", mode: fs.ModePerm, isDir: false},
+	"/file2.txt":       {name: "file2.txt", mode: fs.ModePerm, isDir: false},
 }
 
 func newStoreTest() *store {
@@ -149,6 +151,9 @@ func TestStore_prefixKeys(t *testing.T) {
 		{
 			want: []string{
 				"/dir0",
+				"/dir1",
+				"/file1.txt",
+				"/file2.txt",
 			},
 			prefix: "/",
 		}, {
