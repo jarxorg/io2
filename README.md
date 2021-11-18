@@ -4,46 +4,9 @@
 [![Report Card](https://goreportcard.com/badge/github.com/jarxorg/io2)](https://goreportcard.com/report/github.com/jarxorg/io2)
 [![Coverage Status](https://coveralls.io/repos/github/jarxorg/io2/badge.svg?branch=main)](https://coveralls.io/github/jarxorg/io2?branch=main)
 
-Go "io" and "io/fs" package utilities.
+Go "io" package utilities.
 
-## Writable io/fs.FS implementations
-
-- [osfs](https://github.com/jarxorg/io2/tree/main/osfs)
-- [memfs](https://github.com/jarxorg/io2/tree/main/memfs)
-- [s3fs](https://github.com/jarxorg/s3fs)
-
-```go
-package main
-
-import (
-  "fmt"
-  "io/fs"
-  "log"
-
-  "github.com/jarxorg/io2"
-  "github.com/jarxorg/io2/memfs"
-  "github.com/jarxorg/io2/osfs"
-)
-
-func main() {
-  osFsys := osfs.DirFS(".")
-  memFsys := memfs.New()
-
-  err := io2.CopyFS(memFsys, osFsys, "osfs/testdata")
-  if err != nil {
-    log.Fatal(err)
-  }
-
-  names, err := fs.Glob(memFsys, "osfs/testdata/dir0/*.txt")
-  if err != nil {
-    log.Fatal(err)
-  }
-
-  fmt.Printf("%v\n", names)
-
-  // Output: [osfs/testdata/dir0/file01.txt osfs/testdata/dir0/file02.txt]
-}
-```
+NOTE: some codes moves to [fs2](https://github.com/jarxorg/fs2).
 
 ## Delegator
 
@@ -81,6 +44,12 @@ func main() {
 ### No-op Closer using Delegator
 
 ```go
+// NopReadCloser returns a ReadCloser with a no-op Close method wrapping the provided interface.
+// This function like io.NopCloser(io.Reader).
+func NopReadCloser(r io.Reader) io.ReadCloser {
+	return DelegateReader(r)
+}
+
 // NopReadWriteCloser returns a ReadWriteCloser with a no-op Close method wrapping the provided interface.
 func NopReadWriteCloser(rw io.ReadWriter) io.ReadWriteCloser {
   return DelegateReadWriter(rw)
@@ -94,37 +63,6 @@ func NopReadSeekCloser(r io.ReadSeeker) io.ReadSeekCloser {
 // NopWriteCloser returns a WriteCloser with a no-op Close method wrapping the provided interface.
 func NopWriteCloser(w io.Writer) io.WriteCloser {
   return DelegateWriter(w)
-}
-```
-
-## FSDelegator and FileDelegator
-
-FSDelegator implements FS, ReadDirFS, ReadFileFS, StatFS, SubFS of [io/fs](https://github.com/golang/go/tree/master/src/io/fs) package.
-FSDelegator can override the FS functions that is useful for unit tests.
-
-```go
-package main
-
-import (
-  "errors"
-  "fmt"
-  "io/fs"
-  "os"
-
-  "github.com/jarxorg/io2"
-)
-
-func main() {
-  fsys := io2.DelegateFS(os.DirFS("."))
-  fsys.ReadDirFunc = func(name string) ([]fs.DirEntry, error) {
-    return nil, errors.New("custom")
-  }
-
-  var err error
-  _, err = fs.ReadDir(fsys, ".")
-  fmt.Printf("Error: %v\n", err)
-
-  // Output: Error: custom
 }
 ```
 
