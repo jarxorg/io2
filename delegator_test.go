@@ -9,16 +9,16 @@ import (
 func testDelegatorErrors(t *testing.T, d *Delegator, wantErr error) {
 	var err error
 	if _, err = d.Read([]byte{}); !errors.Is(err, wantErr) {
-		t.Errorf("Error unknown: %v", err)
+		t.Errorf("unknown: %v", err)
 	}
 	if _, err = d.Write([]byte{}); !errors.Is(err, wantErr) {
-		t.Errorf("Error unknown: %v", err)
+		t.Errorf("unknown: %v", err)
 	}
 	if _, err = d.Seek(0, io.SeekStart); !errors.Is(err, wantErr) {
-		t.Errorf("Error unknown: %v", err)
+		t.Errorf("unknown: %v", err)
 	}
 	if err = d.Close(); err != nil {
-		t.Errorf("Error unknown: %v", err)
+		t.Errorf("unknown: %v", err)
 	}
 }
 
