@@ -1,6 +1,7 @@
 package io2
 
 import (
+	"bytes"
 	"io"
 )
 
@@ -13,7 +14,7 @@ type WriteSeekCloser interface {
 
 // WriteSeekBuffer implements io.WriteSeeker that using in-memory byte buffer.
 type WriteSeekBuffer struct {
-	buf []byte
+	buf *bytes.Buffer
 	off int
 	len int
 }
@@ -23,7 +24,7 @@ var _ WriteSeekCloser = (*WriteSeekBuffer)(nil)
 // NewWriteSeekBuffer returns an WriteSeekBuffer with the initial capacity.
 func NewWriteSeekBuffer(capacity int) *WriteSeekBuffer {
 	return &WriteSeekBuffer{
-		buf: make([]byte, capacity),
+		buf: bytes.NewBuffer(make([]byte, capacity)),
 	}
 }
 
@@ -31,7 +32,7 @@ func NewWriteSeekBuffer(capacity int) *WriteSeekBuffer {
 func NewWriteSeekBufferBytes(buf []byte) *WriteSeekBuffer {
 	off := len(buf)
 	return &WriteSeekBuffer{
-		buf: buf,
+		buf: bytes.NewBuffer(buf),
 		off: off,
 		len: off,
 	}
@@ -40,25 +41,19 @@ func NewWriteSeekBufferBytes(buf []byte) *WriteSeekBuffer {
 // Write appends the contents of p to the buffer, growing the buffer as needed.
 // The return value n is the length of p; err is always nil.
 func (b *WriteSeekBuffer) Write(p []byte) (int, error) {
-	capacity := len(b.buf)
 	n := len(p)
 	noff := b.off + n
 
-	// NOTE: Expand inner buffer simply.
-	if noff > capacity {
-		ncapacity := noff
-		nbuf := make([]byte, int(ncapacity))
-		copy(nbuf, b.buf)
-		b.buf = nbuf
+	if grow := noff - b.buf.Len(); grow > 0 {
+		b.buf.Write(make([]byte, grow))
 	}
 
-	copy(b.buf[b.off:], p)
+	copy(b.buf.Bytes()[b.off:noff], p)
 
 	b.off = noff
-	if b.len < noff {
+	if noff > b.len {
 		b.len = noff
 	}
-
 	return n, nil
 }
 
@@ -76,7 +71,7 @@ func (b *WriteSeekBuffer) Seek(offset int64, whence int) (int64, error) {
 	case io.SeekCurrent:
 		noff = b.off + off
 	case io.SeekEnd:
-		noff = b.len + off
+		noff = b.buf.Len() + off
 	}
 	if noff < 0 {
 		noff = 0
@@ -103,19 +98,24 @@ func (b *WriteSeekBuffer) Len() int {
 
 // Bytes returns a slice of length b.Len() of the buffer.
 func (b *WriteSeekBuffer) Bytes() []byte {
-	return b.buf[:b.len]
+	n := b.buf.Len()
+	if n > b.len {
+		n = b.len
+	}
+	return b.buf.Bytes()[:n]
 }
 
 // Truncate changes the size of the buffer with offset.
 func (b *WriteSeekBuffer) Truncate(n int) {
-	l := len(b.buf)
 	if n < 0 {
-		n = l + n
+		n = b.off + n
 	}
-	if n >= l {
-		n = l
+	if n < 0 {
+		n = 0
 	}
-	b.buf = b.buf[0:n]
+	if n < b.buf.Len() {
+		b.buf.Truncate(n)
+	}
 	b.off = n
 	b.len = n
 }

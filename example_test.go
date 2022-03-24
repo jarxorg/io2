@@ -25,7 +25,7 @@ func ExampleDelegateReader() {
 	// Output: Error: custom
 }
 
-func ExampleNewWriteSeekerBuffer() {
+func ExampleNewWriteSeekBuffer() {
 	o := io2.NewWriteSeekBuffer(0)
 	o.Write([]byte(`Hello!`))
 	o.Truncate(o.Len() - 1)
