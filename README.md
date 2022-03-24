@@ -6,7 +6,7 @@
 
 Go "io" package utilities.
 
-NOTE: some codes moves to [fs2](https://github.com/jarxorg/fs2).
+NOTE: some codes moves to [wfs](https://github.com/jarxorg/wfs).
 
 ## Delegator
 
