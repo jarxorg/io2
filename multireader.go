@@ -23,6 +23,8 @@ type multiReader struct {
 
 var _ io.ReadSeekCloser = (*multiReader)(nil)
 
+// MultiReadCloser returns a ReaderCloser that's the logical concatenation
+// of the provided input readers.
 func MultiReadCloser(rs ...io.ReadCloser) io.ReadCloser {
 	ds := make([]*reader, len(rs))
 	for i, r := range rs {
@@ -30,9 +32,22 @@ func MultiReadCloser(rs ...io.ReadCloser) io.ReadCloser {
 			ReadSeekCloser: Delegate(r),
 		}
 	}
+	io.MultiReader()
 	return &multiReader{rs: ds}
 }
 
+// MultiReadSeeker returns a ReadSeeker that's the logical concatenation
+// of the provided input readers.
+func MultiReadSeeker(rs ...io.ReadSeeker) (io.ReadSeeker, error) {
+	ds := make([]io.ReadSeekCloser, len(rs))
+	for i, r := range rs {
+		ds[i] = NopReadSeekCloser(r)
+	}
+	return MultiReadSeekCloser(ds...)
+}
+
+// MultiReadSeekCloser returns a ReadSeekCloser that's the logical concatenation
+// of the provided input readers.
 func MultiReadSeekCloser(rs ...io.ReadSeekCloser) (io.ReadSeekCloser, error) {
 	length := int64(0)
 	ds := make([]*reader, len(rs))

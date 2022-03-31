@@ -2,7 +2,6 @@ package io2
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"strings"
@@ -265,7 +264,6 @@ func TestMultiSeek(t *testing.T) {
 	defer close()
 
 	for i, test := range tests {
-		fmt.Printf("### testing %d\n", i)
 		close()
 		r := test.reader()
 		deferClose = r.Close
@@ -299,9 +297,9 @@ func TestMultiSeek(t *testing.T) {
 
 }
 
-func TestNewMultiReadSeekCloser_Errors(t *testing.T) {
+func TestMultiReadSeeker_Errors(t *testing.T) {
 	tests := []struct {
-		r      io.ReadSeekCloser
+		r      io.ReadSeeker
 		errstr string
 	}{
 		{
@@ -327,7 +325,7 @@ func TestNewMultiReadSeekCloser_Errors(t *testing.T) {
 		},
 	}
 	for i, test := range tests {
-		_, err := MultiReadSeekCloser(test.r)
+		_, err := MultiReadSeeker(test.r)
 		if err == nil {
 			t.Fatalf("tests[%d] no error", i)
 		}
