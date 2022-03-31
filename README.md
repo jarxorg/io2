@@ -6,7 +6,10 @@
 
 Go "io" package utilities.
 
-NOTE: some codes moves to [wfs](https://github.com/jarxorg/wfs).
+- Delegator
+- No-op Closer
+- WriteSeeker
+- Multi Readers
 
 ## Delegator
 
@@ -47,7 +50,7 @@ func main() {
 // NopReadCloser returns a ReadCloser with a no-op Close method wrapping the provided interface.
 // This function like io.NopCloser(io.Reader).
 func NopReadCloser(r io.Reader) io.ReadCloser {
-	return DelegateReader(r)
+  return DelegateReader(r)
 }
 
 // NopReadWriteCloser returns a ReadWriteCloser with a no-op Close method wrapping the provided interface.
@@ -106,5 +109,41 @@ func main() {
   // Output:
   // Hello world!
   // Hello world?
+}
+```
+
+## MultiReadSeeker
+
+MultiReadSeeker returns a ReadSeeker that's the logical concatenation of the provided input readers.
+
+```go
+package main
+
+import (
+  "fmt"
+  "io"
+  "io/ioutil"
+  "strings"
+
+  "github.com/jarxorg/io2"
+)
+
+func main() {
+  r, _ := io2.MultiReadSeeker(
+    strings.NewReader("Hello !"),
+    strings.NewReader(" World"),
+  )
+
+  r.Seek(5, io.SeekStart)
+  p, _ := ioutil.ReadAll(r)
+  fmt.Println(string(p))
+
+  r.Seek(-5, io.SeekEnd)
+  p, _ = ioutil.ReadAll(r)
+  fmt.Println(string(p))
+
+  // Output:
+  // ! World
+  // World
 }
 ```

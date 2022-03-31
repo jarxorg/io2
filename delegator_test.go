@@ -28,8 +28,7 @@ func TestDelegator_ErrNotImplemented(t *testing.T) {
 
 func TestDelegator(t *testing.T) {
 	wantErr := errors.New("test")
-
-	testDelegatorErrors(t, &Delegator{
+	d := &Delegator{
 		ReadFunc: func(_ []byte) (int, error) {
 			return 0, wantErr
 		},
@@ -42,7 +41,9 @@ func TestDelegator(t *testing.T) {
 		CloseFunc: func() error {
 			return nil
 		},
-	}, wantErr)
+	}
+	testDelegatorErrors(t, d, wantErr)
+	testDelegatorErrors(t, Delegate(d), wantErr)
 }
 
 func TestDelegates(t *testing.T) {
