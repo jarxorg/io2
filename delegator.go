@@ -52,6 +52,24 @@ func (d *Delegator) Close() error {
 	return d.CloseFunc()
 }
 
+// Delegate returns a Delegator with the provided io interfaces (io.Reader, io.Seeker, io.Writer, io.Closer).
+func Delegate(i interface{}) *Delegator {
+	d := &Delegator{}
+	if r, ok := i.(io.Reader); ok {
+		d.ReadFunc = r.Read
+	}
+	if s, ok := i.(io.Seeker); ok {
+		d.SeekFunc = s.Seek
+	}
+	if w, ok := i.(io.Writer); ok {
+		d.WriteFunc = w.Write
+	}
+	if c, ok := i.(io.Closer); ok {
+		d.CloseFunc = c.Close
+	}
+	return d
+}
+
 // DelegateReader returns a Delegator with the provided Read function.
 func DelegateReader(i io.Reader) *Delegator {
 	return &Delegator{
