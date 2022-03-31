@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"strings"
 
 	"github.com/jarxorg/io2"
 )
@@ -41,4 +42,23 @@ func ExampleNewWriteSeekBuffer() {
 	// Output:
 	// Hello world!
 	// Hello world?
+}
+
+func ExampleMultiReadSeeker() {
+	r, _ := io2.MultiReadSeeker(
+		strings.NewReader("Hello !"),
+		strings.NewReader(" World"),
+	)
+
+	r.Seek(5, io.SeekStart)
+	p, _ := ioutil.ReadAll(r)
+	fmt.Println(string(p))
+
+	r.Seek(-5, io.SeekEnd)
+	p, _ = ioutil.ReadAll(r)
+	fmt.Println(string(p))
+
+	// Output:
+	// ! World
+	// World
 }
