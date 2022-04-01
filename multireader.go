@@ -130,6 +130,17 @@ func (mr *multiReader) Seek(offset int64, whence int) (int64, error) {
 	return 0, errors.New("invalid whence")
 }
 
+func (mr *multiReader) resetTails() error {
+	for i := mr.off + 1; i < len(mr.rs); i++ {
+		r := mr.rs[i]
+		if _, err := r.Seek(0, io.SeekStart); err != nil {
+			return err
+		}
+		r.off = 0
+	}
+	return nil
+}
+
 func (mr *multiReader) seekStart(offset int64, start int) (int64, error) {
 	off := int64(0)
 	for i := 0; i < start; i++ {
@@ -154,6 +165,9 @@ func (mr *multiReader) seekStart(offset int64, start int) (int64, error) {
 		return nil
 	})
 	if err != nil {
+		return 0, err
+	}
+	if err := mr.resetTails(); err != nil {
 		return 0, err
 	}
 	return off, nil
@@ -186,6 +200,9 @@ func (mr *multiReader) seekCurrent(offset int64) (int64, error) {
 			return mr.seekStart(diffset, mr.off+1)
 		}
 		return mr.seekEnd(diffset, mr.off-1)
+	}
+	if err := mr.resetTails(); err != nil {
+		return 0, err
 	}
 	return off + n, nil
 }

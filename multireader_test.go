@@ -132,6 +132,33 @@ func TestMultiSeek(t *testing.T) {
 			after:  "ef",
 		}, {
 			reader: func() io.ReadSeekCloser {
+				r := testMultiReaderStrings(t, "abc", "def")
+				ioutil.ReadAll(r)
+				return r
+			},
+			offset: int64(0),
+			whence: io.SeekStart,
+			n:      int64(0),
+			after:  "abcdef",
+		}, {
+			reader: func() io.ReadSeekCloser {
+				r0 := NopReadSeekCloser(strings.NewReader("abc"))
+				r1 := strings.NewReader("def")
+				d1 := Delegate(r1)
+				r, err := MultiReadSeekCloser(r0, d1)
+				if err != nil {
+					t.Fatal(err)
+				}
+				d1.SeekFunc = func(offset int64, whence int) (int64, error) {
+					return 0, errors.New("failed to reset tails")
+				}
+				return r
+			},
+			offset: int64(0),
+			whence: io.SeekStart,
+			errstr: "failed to reset tails",
+		}, {
+			reader: func() io.ReadSeekCloser {
 				// NOTE: Check single reader.
 				return NopReadSeekCloser(strings.NewReader("abcdefghi"))
 			},
@@ -204,6 +231,23 @@ func TestMultiSeek(t *testing.T) {
 			whence: io.SeekCurrent,
 			n:      int64(0),
 			after:  "abcdefghi",
+		}, {
+			reader: func() io.ReadSeekCloser {
+				r0 := NopReadSeekCloser(strings.NewReader("abc"))
+				r1 := strings.NewReader("def")
+				d1 := Delegate(r1)
+				r, err := MultiReadSeekCloser(r0, d1)
+				if err != nil {
+					t.Fatal(err)
+				}
+				d1.SeekFunc = func(offset int64, whence int) (int64, error) {
+					return 0, errors.New("failed to reset tails")
+				}
+				return r
+			},
+			offset: int64(0),
+			whence: io.SeekCurrent,
+			errstr: "failed to reset tails",
 		}, {
 			reader: func() io.ReadSeekCloser {
 				// NOTE: Check single reader.
