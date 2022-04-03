@@ -6,10 +6,10 @@
 
 Go "io" package utilities.
 
-- Delegator
-- No-op Closer
-- WriteSeeker
-- Multi Readers
+- [Delegator](#delegator)
+- [No-op Closer](#no-op-closer)
+- [WriteSeeker](#writeseeker)
+- [Multi Readers](#multi-readers)
 
 ## Delegator
 
@@ -44,7 +44,7 @@ func main() {
 }
 ```
 
-### No-op Closer using Delegator
+### No-op Closer
 
 ```go
 // NopReadCloser returns a ReadCloser with a no-op Close method wrapping the provided interface.
@@ -69,7 +69,7 @@ func NopWriteCloser(w io.Writer) io.WriteCloser {
 }
 ```
 
-## WriteSeekBuffer
+## WriteSeeker
 
 WriteSeekBuffer implements io.Writer, io.Seeker and io.Closer.
 NewWriteSeekBuffer(capacity int) returns the buffer.
@@ -112,9 +112,9 @@ func main() {
 }
 ```
 
-## MultiReadSeeker
+## Multi Readers
 
-MultiReadSeeker returns a ReadSeeker that's the logical concatenation of the provided input readers.
+io2 provides MultiReadCloser, MultiReadSeeker, MultiReadSeekCloser.
 
 ```go
 package main
