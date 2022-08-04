@@ -7,50 +7,84 @@ import (
 	"strings"
 )
 
+// MultiReader represents a multiple reader.
+type MultiReader interface {
+	io.Reader
+	// Current returns a current index of multiple readers. The current starts 0.
+	Current() int
+}
+
+// MultiReadCloser is the interface that groups the MultiReader and Close methods.
+type MultiReadCloser interface {
+	MultiReader
+	io.Closer
+}
+
+// MultiReadCloser is the interface that groups the MultiReader, Seek and SeekReader methods.
+type MultiReadSeeker interface {
+	MultiReader
+	io.Seeker
+	// SeekReader sets the offset of multiple readers.
+	SeekReader(current int) (int64, error)
+}
+
+// MultiReadSeekCloser is the interface that groups the MultiReadSeeker and Close methods.
+type MultiReadSeekCloser interface {
+	MultiReadSeeker
+	io.Closer
+}
+
 var errSkip = errors.New("skip")
 
-type reader struct {
+type singleReader struct {
 	io.ReadSeekCloser
 	off    int64
 	length int64
 }
 
 type multiReader struct {
-	rs     []*reader
-	off    int
-	length int64
+	rs      []*singleReader
+	current int
+	length  int64
 }
 
 var _ io.ReadSeekCloser = (*multiReader)(nil)
 
-// MultiReadCloser returns a ReaderCloser that's the logical concatenation
+// NewMultiReader creates a Reader that's the logical concatenation
 // of the provided input readers.
-func MultiReadCloser(rs ...io.ReadCloser) io.ReadCloser {
-	ds := make([]*reader, len(rs))
+func NewMultiReader(rs ...io.Reader) MultiReader {
+	ds := make([]*singleReader, len(rs))
 	for i, r := range rs {
-		ds[i] = &reader{
-			ReadSeekCloser: Delegate(r),
-		}
+		ds[i] = &singleReader{ReadSeekCloser: Delegate(r)}
 	}
-	io.MultiReader()
 	return &multiReader{rs: ds}
 }
 
-// MultiReadSeeker returns a ReadSeeker that's the logical concatenation
+// NewMultiReadCloser create a ReaderCloser that's the logical concatenation
 // of the provided input readers.
-func MultiReadSeeker(rs ...io.ReadSeeker) (io.ReadSeeker, error) {
+func NewMultiReadCloser(rs ...io.ReadCloser) MultiReadCloser {
+	ds := make([]*singleReader, len(rs))
+	for i, r := range rs {
+		ds[i] = &singleReader{ReadSeekCloser: Delegate(r)}
+	}
+	return &multiReader{rs: ds}
+}
+
+// NewMultiReadSeeker creates a ReadSeeker that's the logical concatenation
+// of the provided input readers.
+func NewMultiReadSeeker(rs ...io.ReadSeeker) (MultiReadSeeker, error) {
 	ds := make([]io.ReadSeekCloser, len(rs))
 	for i, r := range rs {
 		ds[i] = NopReadSeekCloser(r)
 	}
-	return MultiReadSeekCloser(ds...)
+	return NewMultiReadSeekCloser(ds...)
 }
 
-// MultiReadSeekCloser returns a ReadSeekCloser that's the logical concatenation
-// of the provided input readers.
-func MultiReadSeekCloser(rs ...io.ReadSeekCloser) (io.ReadSeekCloser, error) {
+// NewMultiReadSeekCloser creates a ReadSeekCloser that's the logical
+// concatenation of the provided input readers.
+func NewMultiReadSeekCloser(rs ...io.ReadSeekCloser) (MultiReadSeekCloser, error) {
 	length := int64(0)
-	ds := make([]*reader, len(rs))
+	ds := make([]*singleReader, len(rs))
 	for i, r := range rs {
 		n, err := r.Seek(0, io.SeekEnd)
 		if err != nil {
@@ -59,7 +93,7 @@ func MultiReadSeekCloser(rs ...io.ReadSeekCloser) (io.ReadSeekCloser, error) {
 		if _, err = r.Seek(0, io.SeekStart); err != nil {
 			return nil, err
 		}
-		ds[i] = &reader{
+		ds[i] = &singleReader{
 			ReadSeekCloser: Delegate(r),
 			length:         n,
 		}
@@ -68,43 +102,48 @@ func MultiReadSeekCloser(rs ...io.ReadSeekCloser) (io.ReadSeekCloser, error) {
 	return &multiReader{rs: ds, length: length}, nil
 }
 
-func (mr *multiReader) each(i int, offset int64, fn func(r *reader) error) error {
-	mr.off = i
+// Current returns a current index of multiple readers.
+func (mr *multiReader) Current() int {
+	return mr.current
+}
+
+func (mr *multiReader) each(i int, offset int64, fn func(r *singleReader) error) error {
+	mr.current = i
 	if offset >= 0 {
-		for ; mr.off < len(mr.rs); mr.off++ {
-			if err := fn(mr.rs[mr.off]); err != nil {
+		for ; mr.current < len(mr.rs); mr.current++ {
+			if err := fn(mr.rs[mr.current]); err != nil {
 				if err == errSkip {
 					err = nil
 				}
 				return err
 			}
 		}
-		if mr.off >= len(mr.rs) {
-			mr.off = len(mr.rs) - 1
+		if mr.current >= len(mr.rs) {
+			mr.current = len(mr.rs) - 1
 		}
 		return nil
 	}
-	for ; mr.off >= 0; mr.off-- {
-		if err := fn(mr.rs[mr.off]); err != nil {
+	for ; mr.current >= 0; mr.current-- {
+		if err := fn(mr.rs[mr.current]); err != nil {
 			if err == errSkip {
 				err = nil
 			}
 			return err
 		}
 	}
-	if mr.off < 0 {
-		mr.off = 0
+	if mr.current < 0 {
+		mr.current = 0
 	}
 	return nil
 }
 
 func (mr *multiReader) Read(p []byte) (n int, err error) {
-	if mr.off >= len(mr.rs) {
+	if mr.current >= len(mr.rs) {
 		return 0, io.EOF
 	}
 	off := 0
-	for ; mr.off < len(mr.rs); mr.off++ {
-		r := mr.rs[mr.off]
+	for ; mr.current < len(mr.rs); mr.current++ {
+		r := mr.rs[mr.current]
 		n, err = r.Read(p[off:])
 		if err != nil {
 			return 0, err
@@ -130,8 +169,20 @@ func (mr *multiReader) Seek(offset int64, whence int) (int64, error) {
 	return 0, errors.New("invalid whence")
 }
 
+// SeekReader sets the offset of multiple readers. The current starts 0.
+func (mr *multiReader) SeekReader(current int) (int64, error) {
+	var offset int64
+	for i, r := range mr.rs {
+		if i >= current {
+			break
+		}
+		offset += r.length
+	}
+	return mr.Seek(offset, io.SeekStart)
+}
+
 func (mr *multiReader) resetTails() error {
-	for i := mr.off + 1; i < len(mr.rs); i++ {
+	for i := mr.current + 1; i < len(mr.rs); i++ {
 		r := mr.rs[i]
 		if _, err := r.Seek(0, io.SeekStart); err != nil {
 			return err
@@ -146,9 +197,9 @@ func (mr *multiReader) seekStart(offset int64, start int) (int64, error) {
 	for i := 0; i < start; i++ {
 		off += mr.rs[i].length
 	}
-	err := mr.each(start, offset, func(r *reader) error {
+	err := mr.each(start, offset, func(r *singleReader) error {
 		safeOffset := offset
-		if mr.off != len(mr.rs)-1 && safeOffset > (r.length-r.off) {
+		if mr.current != len(mr.rs)-1 && safeOffset > (r.length-r.off) {
 			safeOffset = (r.length - r.off)
 		}
 		n, err := r.Seek(safeOffset, io.SeekStart)
@@ -175,18 +226,18 @@ func (mr *multiReader) seekStart(offset int64, start int) (int64, error) {
 
 func (mr *multiReader) seekCurrent(offset int64) (int64, error) {
 	off := int64(0)
-	for i := 0; i < mr.off; i++ {
+	for i := 0; i < mr.current; i++ {
 		off += mr.rs[i].length
 	}
 
-	r := mr.rs[mr.off]
+	r := mr.rs[mr.current]
 	safeOffset := offset
 	if offset >= 0 {
-		if mr.off != len(mr.rs)-1 && safeOffset > (r.length-r.off) {
+		if mr.current != len(mr.rs)-1 && safeOffset > (r.length-r.off) {
 			safeOffset = (r.length - r.off)
 		}
 	} else {
-		if mr.off != 0 && -safeOffset > r.off {
+		if mr.current != 0 && -safeOffset > r.off {
 			safeOffset = -r.off
 		}
 	}
@@ -197,9 +248,9 @@ func (mr *multiReader) seekCurrent(offset int64) (int64, error) {
 	r.off = n
 	if diffset := offset - safeOffset; diffset != 0 {
 		if offset >= 0 {
-			return mr.seekStart(diffset, mr.off+1)
+			return mr.seekStart(diffset, mr.current+1)
 		}
-		return mr.seekEnd(diffset, mr.off-1)
+		return mr.seekEnd(diffset, mr.current-1)
 	}
 	if err := mr.resetTails(); err != nil {
 		return 0, err
@@ -212,9 +263,9 @@ func (mr *multiReader) seekEnd(offset int64, end int) (int64, error) {
 	for i := end + 1; i < len(mr.rs); i++ {
 		off -= mr.rs[i].length
 	}
-	err := mr.each(end, offset, func(r *reader) error {
+	err := mr.each(end, offset, func(r *singleReader) error {
 		safeOffset := offset
-		if mr.off != 0 && -safeOffset > r.length {
+		if mr.current != 0 && -safeOffset > r.length {
 			safeOffset = -r.length
 		}
 		n, err := r.Seek(safeOffset, io.SeekEnd)
@@ -238,7 +289,7 @@ func (mr *multiReader) seekEnd(offset int64, end int) (int64, error) {
 
 func (mr *multiReader) Close() error {
 	var errs []string
-	mr.each(0, 1, func(r *reader) error {
+	mr.each(0, 1, func(r *singleReader) error {
 		if err := r.Close(); err != nil {
 			errs = append(errs, err.Error())
 		}
@@ -248,7 +299,7 @@ func (mr *multiReader) Close() error {
 		return fmt.Errorf("failed to close: %s", strings.Join(errs, "; "))
 	}
 	mr.rs = nil
-	mr.off = 0
+	mr.current = 0
 	mr.length = 0
 	return nil
 }

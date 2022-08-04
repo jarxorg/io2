@@ -45,7 +45,7 @@ func ExampleNewWriteSeekBuffer() {
 }
 
 func ExampleMultiReadSeeker() {
-	r, _ := io2.MultiReadSeeker(
+	r, _ := io2.NewMultiReadSeeker(
 		strings.NewReader("Hello !"),
 		strings.NewReader(" World"),
 	)
