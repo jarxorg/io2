@@ -2,22 +2,43 @@ package io2
 
 import (
 	"errors"
+	"fmt"
 	"io"
+	"io/fs"
 	"io/ioutil"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
 
-func testMultiReaderStrings(t *testing.T, ss ...string) MultiReadSeekCloser {
-	rs := make([]io.ReadSeekCloser, len(ss))
-	for i, s := range ss {
-		rs[i] = NopReadSeekCloser(strings.NewReader(s))
+func testMultiFilenames(contents ...string) ([]string, func(), error) {
+	dir, err := ioutil.TempDir("", "*.multireader")
+	if err != nil {
+		return nil, nil, err
 	}
-	mr, err := NewMultiReadSeekCloser(rs...)
+	done := func() { os.RemoveAll(dir) }
+	var names []string
+	for i, data := range contents {
+		name := filepath.Join(dir, fmt.Sprintf("%d.txt", i+1))
+		if err = ioutil.WriteFile(name, []byte(data), os.ModePerm); err != nil {
+			break
+		}
+		names = append(names, name)
+	}
+	if err != nil {
+		done()
+		return nil, nil, err
+	}
+	return names, done, nil
+}
+
+func mustNewMultiFileReader(t *testing.T, filenames ...string) MultiReadSeekCloser {
+	r, err := NewMultiFileReader(filenames...)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return mr
+	return r
 }
 
 func TestMultiRead(t *testing.T) {
@@ -35,7 +56,7 @@ func TestMultiRead(t *testing.T) {
 			n:    6,
 			want: "abcdef",
 		}, {
-			reader: testMultiReaderStrings(t, "abc", "def"),
+			reader: NopReadCloser(NewMultiStringReader("abc", "def")),
 			n:      6,
 			want:   "abcdef",
 		}, {
@@ -86,8 +107,14 @@ func TestMultiRead(t *testing.T) {
 }
 
 func TestMultiSeek(t *testing.T) {
-	newErrSeekReader := func() io.ReadSeekCloser {
-		return &multiReader{
+	filenames, done, err := testMultiFilenames("abc", "def", "ghi")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer done()
+
+	newErrSeekReaders := func() []io.ReadSeekCloser {
+		return []io.ReadSeekCloser{&multiReader{
 			rs: []*singleReader{
 				{
 					ReadSeekCloser: &Delegator{
@@ -97,54 +124,59 @@ func TestMultiSeek(t *testing.T) {
 					},
 				},
 			},
-		}
+		}}
 	}
 
 	tests := []struct {
-		reader func() io.ReadSeekCloser
-		offset int64
-		whence int
-		n      int64
-		errstr string
-		after  string
+		readers func() []io.ReadSeekCloser
+		offset  int64
+		whence  int
+		n       int64
+		errstr  string
+		after   string
 	}{
 		{
-			reader: func() io.ReadSeekCloser {
-				// NOTE: Check single reader.
-				return NopReadSeekCloser(strings.NewReader("abcdef"))
+			readers: func() []io.ReadSeekCloser {
+				return []io.ReadSeekCloser{
+					NopReadSeekCloser(strings.NewReader("abcdefghi")),
+					NopReadSeekCloser(NewMultiStringReader("abc", "def", "ghi")),
+					mustNewMultiFileReader(t, filenames...),
+				}
 			},
 			offset: 2,
 			whence: io.SeekStart,
 			n:      2,
-			after:  "cdef",
+			after:  "cdefghi",
 		}, {
-			reader: func() io.ReadSeekCloser {
-				return testMultiReaderStrings(t, "abc", "def")
-			},
-			offset: 2,
-			whence: io.SeekStart,
-			n:      2,
-			after:  "cdef",
-		}, {
-			reader: func() io.ReadSeekCloser {
-				return testMultiReaderStrings(t, "abc", "def")
+			readers: func() []io.ReadSeekCloser {
+				return []io.ReadSeekCloser{
+					NopReadSeekCloser(strings.NewReader("abcdefghi")),
+					NopReadSeekCloser(NewMultiStringReader("abc", "def", "ghi")),
+					mustNewMultiFileReader(t, filenames...),
+				}
 			},
 			offset: 4,
 			whence: io.SeekStart,
 			n:      4,
-			after:  "ef",
+			after:  "efghi",
 		}, {
-			reader: func() io.ReadSeekCloser {
-				r := testMultiReaderStrings(t, "abc", "def")
-				ioutil.ReadAll(r)
-				return r
+			readers: func() []io.ReadSeekCloser {
+				rs := []io.ReadSeekCloser{
+					NopReadSeekCloser(strings.NewReader("abcdefghi")),
+					NopReadSeekCloser(NewMultiStringReader("abc", "def", "ghi")),
+					mustNewMultiFileReader(t, filenames...),
+				}
+				for _, r := range rs {
+					ioutil.ReadAll(r)
+				}
+				return rs
 			},
 			offset: 0,
 			whence: io.SeekStart,
 			n:      0,
-			after:  "abcdef",
+			after:  "abcdefghi",
 		}, {
-			reader: func() io.ReadSeekCloser {
+			readers: func() []io.ReadSeekCloser {
 				r0 := NopReadSeekCloser(strings.NewReader("abc"))
 				r1 := strings.NewReader("def")
 				d1 := Delegate(r1)
@@ -155,87 +187,91 @@ func TestMultiSeek(t *testing.T) {
 				d1.SeekFunc = func(offset int64, whence int) (int64, error) {
 					return 0, errors.New("failed to reset tails")
 				}
-				return r
+				return []io.ReadSeekCloser{r}
 			},
 			offset: 0,
 			whence: io.SeekStart,
 			errstr: "failed to reset tails",
 		}, {
-			reader: func() io.ReadSeekCloser {
-				// NOTE: Check single reader.
-				return NopReadSeekCloser(strings.NewReader("abcdefghi"))
+			readers: func() []io.ReadSeekCloser {
+				return []io.ReadSeekCloser{
+					NopReadSeekCloser(strings.NewReader("abcdefghi")),
+					NopReadSeekCloser(NewMultiStringReader("abc", "def", "ghi")),
+					mustNewMultiFileReader(t, filenames...),
+				}
 			},
 			offset: -4,
 			whence: io.SeekEnd,
 			n:      5,
 			after:  "fghi",
 		}, {
-			reader: func() io.ReadSeekCloser {
-				return testMultiReaderStrings(t, "abc", "def", "ghi")
-			},
-			offset: -4,
-			whence: io.SeekEnd,
-			n:      5,
-			after:  "fghi",
-		}, {
-			reader: func() io.ReadSeekCloser {
-				return testMultiReaderStrings(t, "abc", "def", "ghi")
+			readers: func() []io.ReadSeekCloser {
+				return []io.ReadSeekCloser{
+					NopReadSeekCloser(strings.NewReader("abcdefghi")),
+					NopReadSeekCloser(NewMultiStringReader("abc", "def", "ghi")),
+					mustNewMultiFileReader(t, filenames...),
+				}
 			},
 			offset: -9,
 			whence: io.SeekEnd,
 			n:      0,
 			after:  "abcdefghi",
 		}, {
-			reader: func() io.ReadSeekCloser {
-				// NOTE: Check single reader.
-				r := NopReadSeekCloser(strings.NewReader("abcdefghi"))
-				if _, err := r.Seek(4, io.SeekStart); err != nil {
-					t.Fatal(err)
+			readers: func() []io.ReadSeekCloser {
+				rs := []io.ReadSeekCloser{
+					NopReadSeekCloser(strings.NewReader("abcdefghi")),
+					NopReadSeekCloser(NewMultiStringReader("abc", "def", "ghi")),
+					mustNewMultiFileReader(t, filenames...),
 				}
-				return r
+				for _, r := range rs {
+					if _, err := r.Seek(4, io.SeekStart); err != nil {
+						t.Fatal(err)
+					}
+				}
+				return rs
 			},
 			offset: 3,
 			whence: io.SeekCurrent,
 			n:      7,
 			after:  "hi",
 		}, {
-			reader: func() io.ReadSeekCloser {
-				r := testMultiReaderStrings(t, "abc", "def", "ghi")
-				if _, err := r.Seek(4, io.SeekStart); err != nil {
-					t.Fatal(err)
+			readers: func() []io.ReadSeekCloser {
+				rs := []io.ReadSeekCloser{
+					NopReadSeekCloser(strings.NewReader("abcdefghi")),
+					NopReadSeekCloser(NewMultiStringReader("abc", "def", "ghi")),
+					mustNewMultiFileReader(t, filenames...),
 				}
-				return r
-			},
-			offset: 3,
-			whence: io.SeekCurrent,
-			n:      7,
-			after:  "hi",
-		}, {
-			reader: func() io.ReadSeekCloser {
-				r := testMultiReaderStrings(t, "abc", "def", "ghi")
-				if _, err := r.Seek(4, io.SeekStart); err != nil {
-					t.Fatal(err)
+				for _, r := range rs {
+					if _, err := r.Seek(4, io.SeekStart); err != nil {
+						t.Fatal(err)
+					}
 				}
-				return r
+				return rs
 			},
 			offset: -1,
 			whence: io.SeekCurrent,
 			n:      3,
 			after:  "defghi",
 		}, {
-			reader: func() io.ReadSeekCloser {
-				r := testMultiReaderStrings(t, "abc", "def", "ghi")
-				if _, err := r.Seek(4, io.SeekStart); err != nil {
-					t.Fatal(err)
+			readers: func() []io.ReadSeekCloser {
+				rs := []io.ReadSeekCloser{
+					NopReadSeekCloser(strings.NewReader("abcdefghi")),
+					NopReadSeekCloser(NewMultiStringReader("abc", "def", "ghi")),
+					mustNewMultiFileReader(t, filenames...),
 				}
-				return r
+				for _, r := range rs {
+					if _, err := r.Seek(4, io.SeekStart); err != nil {
+						t.Fatal(err)
+					}
+				}
+				return rs
 			},
 			offset: -4,
 			whence: io.SeekCurrent,
 			n:      0,
 			after:  "abcdefghi",
 		}, {
-			reader: func() io.ReadSeekCloser {
+			readers: func() []io.ReadSeekCloser {
 				r0 := NopReadSeekCloser(strings.NewReader("abc"))
 				r1 := strings.NewReader("def")
 				d1 := Delegate(r1)
@@ -246,102 +282,93 @@ func TestMultiSeek(t *testing.T) {
 				d1.SeekFunc = func(offset int64, whence int) (int64, error) {
 					return 0, errors.New("failed to reset tails")
 				}
-				return r
+				return []io.ReadSeekCloser{r}
 			},
 			offset: 0,
 			whence: io.SeekCurrent,
 			errstr: "failed to reset tails",
 		}, {
-			reader: func() io.ReadSeekCloser {
-				// NOTE: Check single reader.
-				return NopReadSeekCloser(strings.NewReader("abcdef"))
+			readers: func() []io.ReadSeekCloser {
+				return []io.ReadSeekCloser{
+					NopReadSeekCloser(strings.NewReader("abcdefghi")),
+					NopReadSeekCloser(NewMultiStringReader("abc", "def", "ghi")),
+				}
 			},
 			offset: -1,
 			whence: io.SeekStart,
 			errstr: "strings.Reader.Seek: negative position",
 		}, {
-			reader: func() io.ReadSeekCloser {
-				return testMultiReaderStrings(t, "abc", "def")
-			},
-			offset: -1,
-			whence: io.SeekStart,
-			errstr: "strings.Reader.Seek: negative position",
-		}, {
-			reader: func() io.ReadSeekCloser {
-				// NOTE: Check single reader.
-				return NopReadSeekCloser(strings.NewReader("abcdef"))
+			readers: func() []io.ReadSeekCloser {
+				return []io.ReadSeekCloser{
+					NopReadSeekCloser(strings.NewReader("abcdefghi")),
+					NopReadSeekCloser(NewMultiStringReader("abc", "def", "ghi")),
+					mustNewMultiFileReader(t, filenames...),
+				}
 			},
 			offset: 10,
 			whence: io.SeekStart,
 			n:      10,
 		}, {
-			reader: func() io.ReadSeekCloser {
-				return testMultiReaderStrings(t, "abc", "def")
-			},
-			offset: 10,
-			whence: io.SeekStart,
-			n:      10,
-		}, {
-			reader: func() io.ReadSeekCloser {
-				return testMultiReaderStrings(t, "abc", "def")
+			readers: func() []io.ReadSeekCloser {
+				return []io.ReadSeekCloser{NopReadSeekCloser(NewMultiStringReader("abc", "def"))}
 			},
 			whence: -1,
 			errstr: "invalid whence",
 		}, {
-			reader: newErrSeekReader,
-			whence: io.SeekStart,
-			errstr: "failed to seek for coverage",
+			readers: newErrSeekReaders,
+			whence:  io.SeekStart,
+			errstr:  "failed to seek for coverage",
 		}, {
-			reader: newErrSeekReader,
-			whence: io.SeekCurrent,
-			errstr: "failed to seek for coverage",
+			readers: newErrSeekReaders,
+			whence:  io.SeekCurrent,
+			errstr:  "failed to seek for coverage",
 		}, {
-			reader: newErrSeekReader,
-			whence: io.SeekEnd,
-			errstr: "failed to seek for coverage",
+			readers: newErrSeekReaders,
+			whence:  io.SeekEnd,
+			errstr:  "failed to seek for coverage",
 		},
 	}
 
-	var deferClose func() error
-	close := func() {
-		if deferClose != nil {
-			deferClose()
-		}
-	}
-	defer close()
+	fn0 := func(i, j int, r io.ReadSeekCloser) {
+		defer r.Close()
 
-	for i, test := range tests {
-		close()
-		r := test.reader()
-		deferClose = r.Close
-
+		test := tests[i]
 		n, err := r.Seek(test.offset, test.whence)
 		if test.errstr != "" {
 			if err == nil {
-				t.Fatalf("tests[%d] no error", i)
+				t.Fatalf("tests[%d-%d] no error", i, j)
 			}
 			if err.Error() != test.errstr {
-				t.Errorf("tests[%d] error %s; want %s", i, err.Error(), test.errstr)
+				t.Errorf("tests[%d-%d] error %s; want %s", i, j, err.Error(), test.errstr)
 			}
-			continue
+			return
 		}
 		if err != nil {
-			t.Fatalf("tests[%d] error %v", i, err)
+			t.Fatalf("tests[%d-%d] error %v", i, j, err)
 		}
 		if n != test.n {
-			t.Errorf("tests[%d] n is %d; want %d", i, n, test.n)
+			t.Errorf("tests[%d-%d] n is %d; want %d", i, j, n, test.n)
 		}
 
 		p, err := ioutil.ReadAll(r)
 		if err != nil {
-			t.Fatalf("tests[%d] error %v", i, err)
+			t.Fatalf("tests[%d-%d] error %v", i, j, err)
 		}
 		after := string(p)
 		if after != test.after {
-			t.Errorf("tests[%d] after %s; want %s", i, after, test.after)
+			t.Errorf("tests[%d-%d] after %s; want %s", i, j, after, test.after)
 		}
 	}
-
+	fn1 := func(i int) {
+		test := tests[i]
+		rs := test.readers()
+		for j, r := range rs {
+			fn0(i, j, r)
+		}
+	}
+	for i := range tests {
+		fn1(i)
+	}
 }
 
 func TestMultiReadSeeker_Errors(t *testing.T) {
@@ -429,28 +456,28 @@ func TestMultiSeekReader(t *testing.T) {
 	}{
 		{
 			reader: func() MultiReadSeeker {
-				return testMultiReaderStrings(t, "a", "bc", "def")
+				return NewMultiStringReader("a", "bc", "def")
 			},
 			offset:  0,
 			n:       0,
 			current: 0,
 		}, {
 			reader: func() MultiReadSeeker {
-				return testMultiReaderStrings(t, "a", "bc", "def")
+				return NewMultiStringReader("a", "bc", "def")
 			},
 			offset:  2,
 			n:       3,
 			current: 2,
 		}, {
 			reader: func() MultiReadSeeker {
-				return testMultiReaderStrings(t, "a", "bc", "def")
+				return NewMultiStringReader("a", "bc", "def")
 			},
 			offset:  10,
 			n:       6,
 			current: 2,
 		}, {
 			reader: func() MultiReadSeeker {
-				r := testMultiReaderStrings(t, "a", "bc", "def")
+				r := NewMultiStringReader("a", "bc", "def")
 				r.Seek(2, io.SeekStart)
 				return r
 			},
@@ -459,7 +486,7 @@ func TestMultiSeekReader(t *testing.T) {
 			current: 0,
 		}, {
 			reader: func() MultiReadSeeker {
-				r := testMultiReaderStrings(t, "a", "bc", "def")
+				r := NewMultiStringReader("a", "bc", "def")
 				r.Seek(5, io.SeekStart)
 				return r
 			},
@@ -480,5 +507,31 @@ func TestMultiSeekReader(t *testing.T) {
 		if current := r.Current(); current != test.current {
 			t.Errorf("tests[%d] current is %d; want %d", i, current, test.current)
 		}
+	}
+}
+
+func TestNewMultiFileReader_osOpenError(t *testing.T) {
+	osOpenOrg := osOpen
+	defer func() { osOpen = osOpenOrg }()
+	osOpen = func(filename string) (*os.File, error) {
+		return nil, errors.New("test-error")
+	}
+
+	_, err := NewMultiFileReader("LICENSE")
+	if err == nil || err.Error() != "test-error" {
+		t.Fatalf("unexpected error %v", err)
+	}
+}
+
+func TestNewMultiFileReader_fsStatError(t *testing.T) {
+	fsStatOrg := fsStat
+	defer func() { fsStat = fsStatOrg }()
+	fsStat = func(file *os.File) (fs.FileInfo, error) {
+		return nil, errors.New("test-error")
+	}
+
+	_, err := NewMultiFileReader("LICENSE")
+	if err == nil || err.Error() != "test-error" {
+		t.Fatalf("unexpected error %v", err)
 	}
 }

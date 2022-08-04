@@ -102,6 +102,40 @@ func NewMultiReadSeekCloser(rs ...io.ReadSeekCloser) (MultiReadSeekCloser, error
 	return &multiReader{rs: ds, length: length}, nil
 }
 
+func NewMultiStringReader(strs ...string) MultiReadSeeker {
+	length := int64(0)
+	ds := make([]*singleReader, len(strs))
+	for i, str := range strs {
+		ds[i] = &singleReader{
+			ReadSeekCloser: NopReadSeekCloser(strings.NewReader(str)),
+			length:         int64(len(str)),
+		}
+		length += ds[i].length
+	}
+	return &multiReader{rs: ds, length: length}
+}
+
+func NewMultiFileReader(filenames ...string) (MultiReadSeekCloser, error) {
+	length := int64(0)
+	ds := make([]*singleReader, len(filenames))
+	for i, filename := range filenames {
+		f, err := osOpen(filename)
+		if err != nil {
+			return nil, err
+		}
+		info, err := fsStat(f)
+		if err != nil {
+			return nil, err
+		}
+		ds[i] = &singleReader{
+			ReadSeekCloser: f,
+			length:         info.Size(),
+		}
+		length += ds[i].length
+	}
+	return &multiReader{rs: ds, length: length}, nil
+}
+
 // Current returns a current index of multiple readers.
 func (mr *multiReader) Current() int {
 	return mr.current
